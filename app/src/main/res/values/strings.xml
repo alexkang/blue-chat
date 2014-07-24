@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string name="app_name">BT Chatroom</string>
+    <string name="host">Host</string>
+    <string name="join">Join</string>
+    <string name="title_activity_host">HostActivity</string>
+
+</resources>
