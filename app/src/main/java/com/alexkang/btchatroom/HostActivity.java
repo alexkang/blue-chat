@@ -23,7 +23,6 @@ import java.util.UUID;
 public class HostActivity extends Activity {
 
     public static final int REQUEST_DISCOVERABLE = 1;
-    public static final String UUID = "28286a80-137b-11e4-bbe8-0002a5d5c51b";
 
     private String name;
     private BluetoothAdapter mBluetoothAdapter;
@@ -72,7 +71,7 @@ public class HostActivity extends Activity {
     }
 
     private void manageSocket(BluetoothSocket socket) {
-
+        Toast.makeText(this, socket.getRemoteDevice().getName(), Toast.LENGTH_SHORT).show();
     }
 
     private class AcceptThread extends Thread {
@@ -82,16 +81,19 @@ public class HostActivity extends Activity {
             BluetoothServerSocket tmp = null;
 
             try {
-                tmp = mBluetoothAdapter.listenUsingRfcommWithServiceRecord(name, java.util.UUID.fromString(UUID));
+                tmp = mBluetoothAdapter.
+                        listenUsingRfcommWithServiceRecord(
+                                name, java.util.UUID.fromString(MainActivity.UUID)
+                        );
             } catch (IOException e) {}
 
             mmServerSocket = tmp;
         }
 
         public void run() {
-            BluetoothSocket socket;
-
             while (true) {
+                final BluetoothSocket socket;
+
                 try {
                     socket = mmServerSocket.accept();
                 } catch (IOException e) {
@@ -99,7 +101,12 @@ public class HostActivity extends Activity {
                 }
 
                 if (socket != null) {
-                    manageSocket(socket);
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            manageSocket(socket);
+                        }
+                    });
                 }
             }
         }

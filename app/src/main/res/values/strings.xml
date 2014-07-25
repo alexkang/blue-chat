@@ -5,5 +5,7 @@
     <string name="host">Host</string>
     <string name="join">Join</string>
     <string name="title_activity_host">HostActivity</string>
+    <string name="title_activity_client">ClientActivity</string>
+    <string name="action_settings">Settings</string>
 
 </resources>

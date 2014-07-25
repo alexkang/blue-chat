@@ -14,6 +14,7 @@ import android.widget.Toast;
 public class MainActivity extends Activity {
 
     public static final int REQUEST_ENABLE_BT = 0;
+    public static final String UUID = "28286a80-137b-11e4-bbe8-0002a5d5c51b";
 
     private Button mHostButton;
     private Button mJoinButton;
@@ -49,7 +50,8 @@ public class MainActivity extends Activity {
     }
 
     private void joinRoom() {
-
+        Intent i = new Intent(this, ClientActivity.class);
+        startActivity(i);
     }
 
     @Override
