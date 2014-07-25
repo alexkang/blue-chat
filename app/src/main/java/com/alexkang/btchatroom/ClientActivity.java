@@ -8,7 +8,12 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.database.Cursor;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.net.Uri;
 import android.os.Bundle;
+import android.provider.MediaStore;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -18,11 +23,15 @@ import android.widget.Toast;
 
 import com.alexkang.btchatroom.R;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 
 public class ClientActivity extends Activity {
 
+    public static final int PICK_IMAGE = 2;
+
     private EditText mMessage;
+    private Button mAttachButton;
     private Button mSendButton;
 
     private BluetoothAdapter mBluetoothAdapter;
@@ -47,18 +56,82 @@ public class ClientActivity extends Activity {
         setContentView(R.layout.activity_chatroom);
 
         mMessage = (EditText) findViewById(R.id.message);
+        mAttachButton = (Button) findViewById(R.id.attach);
         mSendButton = (Button) findViewById(R.id.send);
         mChatManager = new ChatManager(this, false);
+
+        mAttachButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                uploadAttachment();
+            }
+        });
 
         mSendButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                String message = mMessage.getText().toString();
-                mChatManager.write(message, ChatManager.MESSAGE_SEND);
-
-                mMessage.setText("");
+                sendMessage();
             }
         });
+    }
+
+    private void sendMessage() {
+        byte[] byteArray;
+
+        try {
+            byte[] messageBytes = mMessage.getText().toString().getBytes();
+
+            ByteArrayOutputStream output = new ByteArrayOutputStream(messageBytes.length + 1);
+            output.write(ChatManager.MESSAGE_SEND);
+            output.write(messageBytes);
+
+            byteArray = output.toByteArray();
+        } catch (Exception e) {
+            return;
+        }
+
+        mChatManager.write(byteArray);
+        mMessage.setText("");
+    }
+
+    private void uploadAttachment() {
+        Intent i = new Intent();
+        i.setType("image/*");
+        i.setAction(Intent.ACTION_GET_CONTENT);
+        startActivityForResult(Intent.createChooser(i, "Select Picture"), PICK_IMAGE);
+    }
+
+    private void sendImage(Bitmap bitmap) {
+        try {
+            ByteArrayOutputStream output = new ByteArrayOutputStream();
+            ByteArrayOutputStream imageArray = new ByteArrayOutputStream();
+
+            output.write(ChatManager.MESSAGE_SEND_IMAGE);
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 25, imageArray);
+            output.write(imageArray.toByteArray());
+
+            byte[] byteArray = output.toByteArray();
+
+            mChatManager.write(byteArray);
+        } catch (Exception e) {}
+    }
+
+    @Override
+    public void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (resultCode == RESULT_OK && requestCode == PICK_IMAGE) {
+            Uri image = data.getData();
+            String[] filePathColumn = { MediaStore.Images.Media.DATA };
+            Cursor cursor = getContentResolver().query(image, filePathColumn, null, null, null);
+            cursor.moveToFirst();
+            int columnIndex = cursor.getColumnIndex(filePathColumn[0]);
+            String picturePath = cursor.getString(columnIndex);
+            cursor.close();
+
+            sendImage(BitmapFactory.decodeFile(picturePath));
+        } else {
+            Toast.makeText(this, "Something went wrong, now exiting.", Toast.LENGTH_LONG).show();
+            finish();
+        }
     }
 
     @Override
@@ -87,11 +160,9 @@ public class ClientActivity extends Activity {
     private class ConnectThread extends Thread {
 
         private final BluetoothSocket mmSocket;
-        private final BluetoothDevice mmDevice;
 
         public ConnectThread(BluetoothDevice device) {
             BluetoothSocket tmp = null;
-            mmDevice = device;
 
             try {
                 tmp = device.createRfcommSocketToServiceRecord(
