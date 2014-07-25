@@ -11,6 +11,9 @@ import android.content.IntentFilter;
 import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.View;
+import android.widget.Button;
+import android.widget.EditText;
 import android.widget.Toast;
 
 import com.alexkang.btchatroom.R;
@@ -19,8 +22,12 @@ import java.io.IOException;
 
 public class ClientActivity extends Activity {
 
+    private EditText mMessage;
+    private Button mSendButton;
+
     private BluetoothAdapter mBluetoothAdapter;
-    private BluetoothDevice host;
+
+    private ChatManager mChatManager;
 
     private final BroadcastReceiver mReceiver = new BroadcastReceiver() {
         @Override
@@ -28,8 +35,8 @@ public class ClientActivity extends Activity {
             String action = intent.getAction();
 
             if (BluetoothDevice.ACTION_FOUND.equals(action)) {
-                host = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
-                new ConnectThread(host).start();
+                BluetoothDevice mHost = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+                new ConnectThread(mHost).start();
             }
         }
     };
@@ -37,7 +44,21 @@ public class ClientActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_client);
+        setContentView(R.layout.activity_chatroom);
+
+        mMessage = (EditText) findViewById(R.id.message);
+        mSendButton = (Button) findViewById(R.id.send);
+        mChatManager = new ChatManager(this, false);
+
+        mSendButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                String message = mMessage.getText().toString();
+                mChatManager.write(message, ChatManager.MESSAGE_SEND);
+
+                mMessage.setText("");
+            }
+        });
     }
 
     @Override
@@ -60,9 +81,11 @@ public class ClientActivity extends Activity {
 
     private void manageSocket(BluetoothSocket socket) {
         Toast.makeText(this, socket.getRemoteDevice().getName(), Toast.LENGTH_SHORT).show();
+        mChatManager.startConnection(socket);
     }
 
     private class ConnectThread extends Thread {
+
         private final BluetoothSocket mmSocket;
         private final BluetoothDevice mmDevice;
 
@@ -98,6 +121,7 @@ public class ClientActivity extends Activity {
                 }
             });
         }
+
     }
 
 }
