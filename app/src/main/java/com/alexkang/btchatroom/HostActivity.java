@@ -22,6 +22,7 @@ import android.view.View;
 import android.view.inputmethod.EditorInfo;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ListView;
 import android.widget.Toast;
 
 import com.alexkang.btchatroom.R;
@@ -31,6 +32,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.UUID;
 
 public class HostActivity extends Activity {
@@ -44,6 +46,7 @@ public class HostActivity extends Activity {
 
     private String mChatRoomName;
     private BluetoothAdapter mBluetoothAdapter;
+    private AcceptThread mAcceptThread;
 
     private ChatManager mChatManager;
 
@@ -82,9 +85,10 @@ public class HostActivity extends Activity {
         nameInput.setImeOptions(EditorInfo.IME_ACTION_DONE);
 
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("Enter your ChatRoom name");
+        builder.setMessage("Enter your ChatRoom name");
         builder.setView(nameInput);
-        builder.setPositiveButton("Okay!", new DialogInterface.OnClickListener() {
+        builder.setCancelable(false);
+        builder.setPositiveButton("Submit", new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialogInterface, int which) {
                 mChatRoomName = nameInput.getText().toString();
@@ -96,6 +100,12 @@ public class HostActivity extends Activity {
                 Intent i = new Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE);
                 i.putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 300);
                 startActivityForResult(i, REQUEST_DISCOVERABLE);
+            }
+        });
+        builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialogInterface, int i) {
+                finish();
             }
         });
         builder.show();
@@ -111,11 +121,17 @@ public class HostActivity extends Activity {
     private void sendMessage() {
         byte[] byteArray;
 
+        if (mMessage.getText().toString().length() == 0) {
+            return;
+        }
+
         try {
             byte[] messageBytes = mMessage.getText().toString().getBytes();
 
             ByteArrayOutputStream output = new ByteArrayOutputStream(messageBytes.length + 1);
             output.write(ChatManager.MESSAGE_RECEIVE);
+            output.write(mBluetoothAdapter.getName().length());
+            output.write(mBluetoothAdapter.getName().getBytes());
             output.write(messageBytes);
 
             byteArray = output.toByteArray();
@@ -137,6 +153,7 @@ public class HostActivity extends Activity {
             output.write(imageArray.toByteArray());
 
             byte[] byteArray = output.toByteArray();
+            Toast.makeText(this, byteArray.length + "", Toast.LENGTH_SHORT).show();
 
             mChatManager.write(byteArray);
         } catch (Exception e) {}
@@ -145,7 +162,8 @@ public class HostActivity extends Activity {
     @Override
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
         if (resultCode != RESULT_CANCELED && requestCode == REQUEST_DISCOVERABLE) {
-            new AcceptThread().start();
+            mAcceptThread = new AcceptThread();
+            mAcceptThread.start();
             Toast.makeText(this, "Searching for users...", Toast.LENGTH_SHORT).show();
         } else if (resultCode == RESULT_OK && requestCode == PICK_IMAGE) {
             Uri image = data.getData();
@@ -163,6 +181,12 @@ public class HostActivity extends Activity {
         }
     }
 
+    @Override
+    public void onStop() {
+        super.onStop();
+
+    }
+
     private void manageSocket(BluetoothSocket socket) {
         Toast.makeText(this, socket.getRemoteDevice().getName() + " connected", Toast.LENGTH_SHORT).show();
         mChatManager.startConnection(socket);
@@ -177,7 +201,7 @@ public class HostActivity extends Activity {
             return;
         }
 
-        mChatManager.write(byteArray);
+        mChatManager.writeName(byteArray);
     }
 
     private class AcceptThread extends Thread {
@@ -216,6 +240,12 @@ public class HostActivity extends Activity {
                     });
                 }
             }
+        }
+
+        public void cancel() {
+            try {
+                mmServerSocket.close();
+            } catch (IOException e) {}
         }
 
     }

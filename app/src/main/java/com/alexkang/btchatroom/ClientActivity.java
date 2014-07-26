@@ -1,6 +1,7 @@
 package com.alexkang.btchatroom;
 
 import android.app.Activity;
+import android.app.ProgressDialog;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
@@ -13,18 +14,16 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.ParcelUuid;
 import android.provider.MediaStore;
-import android.view.Menu;
-import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.Toast;
 
-import com.alexkang.btchatroom.R;
-
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.UUID;
 
 public class ClientActivity extends Activity {
 
@@ -33,6 +32,7 @@ public class ClientActivity extends Activity {
     private EditText mMessage;
     private Button mAttachButton;
     private Button mSendButton;
+    private ProgressDialog mProgressDialog;
 
     private BluetoothAdapter mBluetoothAdapter;
 
@@ -44,8 +44,19 @@ public class ClientActivity extends Activity {
             String action = intent.getAction();
 
             if (BluetoothDevice.ACTION_FOUND.equals(action)) {
+                boolean validHost = false;
                 BluetoothDevice mHost = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
-                new ConnectThread(mHost).start();
+                ParcelUuid[] uuids = mHost.getUuids();
+
+                for (ParcelUuid uuid : uuids) {
+                    if (uuid.getUuid().equals(UUID.fromString(MainActivity.UUID))) {
+                        validHost = true;
+                    }
+                }
+
+                if (validHost || true) {
+                    new ConnectThread(mHost).start();
+                }
             }
         }
     };
@@ -59,6 +70,7 @@ public class ClientActivity extends Activity {
         mAttachButton = (Button) findViewById(R.id.attach);
         mSendButton = (Button) findViewById(R.id.send);
         mChatManager = new ChatManager(this, false);
+        mProgressDialog = new ProgressDialog(this);
 
         mAttachButton.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -73,16 +85,25 @@ public class ClientActivity extends Activity {
                 sendMessage();
             }
         });
+
+        mProgressDialog.setMessage("Looking for ChatRoom...");
+        mProgressDialog.show();
     }
 
     private void sendMessage() {
         byte[] byteArray;
+
+        if (mMessage.getText().toString().length() == 0) {
+            return;
+        }
 
         try {
             byte[] messageBytes = mMessage.getText().toString().getBytes();
 
             ByteArrayOutputStream output = new ByteArrayOutputStream(messageBytes.length + 1);
             output.write(ChatManager.MESSAGE_SEND);
+            output.write(mBluetoothAdapter.getName().length());
+            output.write(mBluetoothAdapter.getName().getBytes());
             output.write(messageBytes);
 
             byteArray = output.toByteArray();
@@ -146,6 +167,13 @@ public class ClientActivity extends Activity {
     }
 
     @Override
+    public void onResume() {
+        super.onResume();
+
+        mChatManager.restartConnection();
+    }
+
+    @Override
     public void onDestroy() {
         super.onDestroy();
 
@@ -153,8 +181,8 @@ public class ClientActivity extends Activity {
     }
 
     private void manageSocket(BluetoothSocket socket) {
-        Toast.makeText(this, socket.getRemoteDevice().getName(), Toast.LENGTH_SHORT).show();
         mChatManager.startConnection(socket);
+        mProgressDialog.dismiss();
     }
 
     private class ConnectThread extends Thread {

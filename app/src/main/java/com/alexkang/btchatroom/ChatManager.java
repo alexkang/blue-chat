@@ -1,21 +1,22 @@
 package com.alexkang.btchatroom;
 
 import android.app.Activity;
+import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothSocket;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.os.Handler;
 import android.os.Message;
 import android.widget.ImageView;
-import android.widget.LinearLayout;
-import android.widget.TextView;
+import android.widget.ListView;
+import android.widget.Toast;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Date;
 
 /**
  * Created by Alex on 7/24/2014.
@@ -31,9 +32,13 @@ public class ChatManager {
     private boolean isHost;
     private ArrayList<ConnectedThread> connections;
 
-    private Activity mActivity;
-    private LinearLayout mMessageFeed;
+    private ArrayList<MessageBox> mMessageList;
+    private MessageFeedAdapter mFeedAdapter;
 
+    private Activity mActivity;
+    private ListView mMessageFeed;
+
+    private BluetoothSocket mSocket;
     private ConnectedThread mConnectedThread;
 
     private final Handler mHandler = new Handler() {
@@ -42,11 +47,15 @@ public class ChatManager {
         public void handleMessage(Message msg) {
             switch (msg.what) {
                 case MESSAGE_NAME:
-                    byte[] nameBuffer = (byte[]) msg.obj;
-                    String name = new String(nameBuffer);
+                    if (!isHost) {
+                        byte[] nameBuffer = (byte[]) msg.obj;
+                        String name = new String(nameBuffer);
 
-                    if (mActivity.getActionBar() != null) {
-                        mActivity.getActionBar().setTitle(name);
+                        if (mActivity.getActionBar() != null) {
+                            mActivity.getActionBar().setTitle(name);
+                        }
+
+                        Toast.makeText(mActivity, "Connected to " + name, Toast.LENGTH_SHORT).show();
                     }
                     break;
                 case MESSAGE_SEND:
@@ -59,11 +68,21 @@ public class ChatManager {
                     break;
                 case MESSAGE_RECEIVE:
                     byte[] receiveBuffer = (byte[]) msg.obj;
-                    String receiveMessage = new String(receiveBuffer);
-                    TextView receiveView = new TextView(mActivity);
+                    int nameLength = msg.arg1;
+                    String wholeMessage = new String(receiveBuffer);
+                    String name = wholeMessage.substring(0, nameLength);
+                    String receiveMessage;
 
-                    receiveView.setText(receiveMessage);
-                    mMessageFeed.addView(receiveView, 0);
+                    if (nameLength == 0) {
+                        receiveMessage = wholeMessage;
+                    } else {
+                        receiveMessage = wholeMessage.substring(nameLength);
+                    }
+
+                    boolean isSelf = BluetoothAdapter.getDefaultAdapter().getName().equals(name);
+                    MessageBox messageBox = new MessageBox(name, receiveMessage, new Date(), isSelf);
+                    addMessage(messageBox);
+
                     break;
                 case MESSAGE_SEND_IMAGE:
                     if (isHost) {
@@ -87,20 +106,35 @@ public class ChatManager {
 
     public ChatManager(Activity activity, boolean isHost) {
         mActivity = activity;
-        mMessageFeed = (LinearLayout) activity.findViewById(R.id.message_feed);
+        mMessageFeed = (ListView) mActivity.findViewById(R.id.message_feed);
         this.isHost = isHost;
 
         if (isHost) {
             connections = new ArrayList<ConnectedThread>();
         }
+
+        mMessageList = new ArrayList<MessageBox>();
+        mFeedAdapter = new MessageFeedAdapter(mActivity, mMessageList);
+        mMessageFeed.setAdapter(mFeedAdapter);
     }
 
     public void startConnection(BluetoothSocket socket) {
         mConnectedThread = new ConnectedThread(socket);
         mConnectedThread.start();
+        mSocket = socket;
 
         if (isHost) {
             connections.add(mConnectedThread);
+        }
+    }
+
+    public void restartConnection() {
+        if (!isHost && mSocket != null) {
+            try {
+                mSocket.close();
+                mConnectedThread = new ConnectedThread(mSocket);
+                mConnectedThread.start();
+            } catch (IOException e) {}
         }
     }
 
@@ -110,11 +144,24 @@ public class ChatManager {
                 connection.write(byteArray);
             }
 
-            mHandler.obtainMessage(byteArray[0], -1, -1, Arrays.copyOfRange(byteArray, 1, byteArray.length))
+            mHandler.obtainMessage(byteArray[0], byteArray[1], -1, Arrays.copyOfRange(byteArray, 2, byteArray.length))
                     .sendToTarget();
         } else {
             mConnectedThread.write(byteArray);
         }
+    }
+
+    public void writeName(byte[] byteArray) {
+        for (ConnectedThread connection : connections) {
+            connection.write(byteArray);
+        }
+    }
+
+    private void addMessage(MessageBox message) {
+        mMessageList.add(message);
+        mMessageFeed.invalidateViews();
+        mFeedAdapter.notifyDataSetChanged();
+        mMessageFeed.setSelection(mFeedAdapter.getCount()-1);
     }
 
     private class ConnectedThread extends Thread {
@@ -141,15 +188,21 @@ public class ChatManager {
                     byte[] buffer = new byte[1024];
                     mmInStream.read(buffer);
                     int type = buffer[0];
+                    int nameLength = buffer[1];
 
                     if (type == MESSAGE_SEND || type == MESSAGE_SEND_IMAGE) {
                         mHandler.obtainMessage(type, -1, -1, buffer)
+                                .sendToTarget();
+                    } else if (type == MESSAGE_RECEIVE || type == MESSAGE_RECEIVE_IMAGE) {
+                        mHandler.obtainMessage(type, nameLength, -1, Arrays.copyOfRange(buffer, 2, buffer.length))
                                 .sendToTarget();
                     } else {
                         mHandler.obtainMessage(type, -1, -1, Arrays.copyOfRange(buffer, 1, buffer.length))
                                 .sendToTarget();
                     }
-                } catch (IOException e) {}
+                } catch (IOException e) {
+                    break;
+                }
             }
         }
 
