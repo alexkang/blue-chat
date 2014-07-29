@@ -1,4 +1,4 @@
-package com.alexkang.btchatroom;
+package com.alexkang.bluechat;
 
 import android.app.Activity;
 import android.app.AlertDialog;
@@ -7,33 +7,20 @@ import android.bluetooth.BluetoothServerSocket;
 import android.bluetooth.BluetoothSocket;
 import android.content.DialogInterface;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.graphics.drawable.BitmapDrawable;
-import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.MediaStore;
-import android.view.Menu;
-import android.view.MenuItem;
 import android.view.View;
 import android.view.inputmethod.EditorInfo;
 import android.widget.Button;
 import android.widget.EditText;
-import android.widget.ListView;
 import android.widget.Toast;
 
-import com.alexkang.btchatroom.R;
-
 import java.io.ByteArrayOutputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.UUID;
 
 public class HostActivity extends Activity {
 
@@ -127,11 +114,13 @@ public class HostActivity extends Activity {
 
         try {
             byte[] messageBytes = mMessage.getText().toString().getBytes();
+            byte[] senderBytes = mBluetoothAdapter.getName().getBytes();
 
-            ByteArrayOutputStream output = new ByteArrayOutputStream(messageBytes.length + 1);
+            ByteArrayOutputStream output = new ByteArrayOutputStream(senderBytes.length + messageBytes.length + 3);
             output.write(ChatManager.MESSAGE_RECEIVE);
-            output.write(mBluetoothAdapter.getName().length());
-            output.write(mBluetoothAdapter.getName().getBytes());
+            output.write(senderBytes.length + messageBytes.length);
+            output.write(senderBytes.length);
+            output.write(senderBytes);
             output.write(messageBytes);
 
             byteArray = output.toByteArray();
@@ -146,14 +135,16 @@ public class HostActivity extends Activity {
     private void sendImage(Bitmap bitmap) {
         try {
             ByteArrayOutputStream output = new ByteArrayOutputStream();
-            ByteArrayOutputStream imageArray = new ByteArrayOutputStream();
+            byte[] senderBytes = mBluetoothAdapter.getName().getBytes();
 
             output.write(ChatManager.MESSAGE_RECEIVE_IMAGE);
-            bitmap.compress(Bitmap.CompressFormat.JPEG, 25, imageArray);
-            output.write(imageArray.toByteArray());
+            output.write(senderBytes.length);
+            output.write(senderBytes.length);
+            output.write(senderBytes);
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 15, output);
 
             byte[] byteArray = output.toByteArray();
-            Toast.makeText(this, byteArray.length + "", Toast.LENGTH_SHORT).show();
+            byteArray[1] = (byte) (byteArray.length - 3);
 
             mChatManager.write(byteArray);
         } catch (Exception e) {}
@@ -185,6 +176,9 @@ public class HostActivity extends Activity {
     public void onStop() {
         super.onStop();
 
+        try {
+            mAcceptThread.cancel();
+        } catch (Exception e) {}
     }
 
     private void manageSocket(BluetoothSocket socket) {
@@ -195,6 +189,8 @@ public class HostActivity extends Activity {
         try {
             ByteArrayOutputStream output = new ByteArrayOutputStream(mChatRoomName.length() + 1);
             output.write(ChatManager.MESSAGE_NAME);
+            output.write(mChatRoomName.length());
+            output.write(-1);
             output.write(mChatRoomName.getBytes());
             byteArray = output.toByteArray();
         } catch (IOException e) {
@@ -207,9 +203,11 @@ public class HostActivity extends Activity {
     private class AcceptThread extends Thread {
 
         private final BluetoothServerSocket mmServerSocket;
+        private boolean isAccepting;
 
         public AcceptThread() {
             BluetoothServerSocket tmp = null;
+            isAccepting = true;
 
             try {
                 tmp = mBluetoothAdapter.
@@ -222,7 +220,7 @@ public class HostActivity extends Activity {
         }
 
         public void run() {
-            while (true) {
+            while (isAccepting) {
                 final BluetoothSocket socket;
 
                 try {
@@ -244,6 +242,7 @@ public class HostActivity extends Activity {
 
         public void cancel() {
             try {
+                isAccepting = false;
                 mmServerSocket.close();
             } catch (IOException e) {}
         }

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.alexkang.btchatroom" >
+    package="com.alexkang.bluechat" >
 
     <uses-permission android:name="android.permission.BLUETOOTH" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
@@ -12,7 +12,7 @@
         android:label="@string/app_name"
         android:theme="@style/AppTheme" >
         <activity
-            android:name=".MainActivity"
+            android:name="com.alexkang.bluechat.MainActivity"
             android:label="@string/app_name"
             android:screenOrientation="portrait" >
             <intent-filter>
@@ -22,9 +22,9 @@
             </intent-filter>
         </activity>
         <activity
-            android:name=".HostActivity"
+            android:name="com.alexkang.bluechat.HostActivity"
             android:label="@string/title_activity_host"
-            android:parentActivityName=".MainActivity"
+            android:parentActivityName="com.alexkang.bluechat.MainActivity"
             android:windowSoftInputMode="stateHidden"
             android:screenOrientation="portrait" >
             <meta-data
@@ -32,9 +32,9 @@
                 android:value="com.alexkang.btchatroom.MainActivity" />
         </activity>
         <activity
-            android:name=".ClientActivity"
+            android:name="com.alexkang.bluechat.ClientActivity"
             android:label="@string/title_activity_client"
-            android:parentActivityName=".MainActivity"
+            android:parentActivityName="com.alexkang.bluechat.MainActivity"
             android:windowSoftInputMode="stateHidden"
             android:screenOrientation="portrait" >
             <meta-data

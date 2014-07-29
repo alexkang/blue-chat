@@ -1,16 +1,17 @@
-package com.alexkang.btchatroom;
+package com.alexkang.bluechat;
 
 import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothSocket;
+import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.os.Handler;
 import android.os.Message;
-import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.Toast;
 
+import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -94,11 +95,14 @@ public class ChatManager {
                     break;
                 case MESSAGE_RECEIVE_IMAGE:
                     byte[] imageBuffer = (byte[]) msg.obj;
-                    Bitmap bitmap = BitmapFactory.decodeByteArray(imageBuffer, 0, imageBuffer.length);
+                    int imageSenderLength = msg.arg1;
 
-                    ImageView imageView = new ImageView(mActivity);
-                    imageView.setImageBitmap(bitmap);
-                    mMessageFeed.addView(imageView, 0);
+                    String imageWholeMessage = new String(imageBuffer);
+                    String imageSenderName = imageWholeMessage.substring(0, imageSenderLength);
+                    Bitmap bitmap = BitmapFactory.decodeByteArray(imageBuffer, imageSenderLength, imageBuffer.length - imageSenderLength);
+
+                    MessageBox imageBox = new MessageBox(imageSenderName, bitmap, new Date(), true);
+                    addMessage(imageBox);
             }
         }
 
@@ -134,7 +138,12 @@ public class ChatManager {
                 mSocket.close();
                 mConnectedThread = new ConnectedThread(mSocket);
                 mConnectedThread.start();
-            } catch (IOException e) {}
+            } catch (IOException e) {
+                Toast.makeText(mActivity, "Failed to reconnect, now exiting", Toast.LENGTH_SHORT).show();
+                Intent i = new Intent(mActivity, MainActivity.class);
+                mActivity.startActivity(i);
+                mActivity.finish();
+            }
         }
     }
 
@@ -144,7 +153,7 @@ public class ChatManager {
                 connection.write(byteArray);
             }
 
-            mHandler.obtainMessage(byteArray[0], byteArray[1], -1, Arrays.copyOfRange(byteArray, 2, byteArray.length))
+            mHandler.obtainMessage(byteArray[0], byteArray[2], -1, Arrays.copyOfRange(byteArray, 3, byteArray.length))
                     .sendToTarget();
         } else {
             mConnectedThread.write(byteArray);
@@ -176,7 +185,12 @@ public class ChatManager {
             try {
                 tmpIn = socket.getInputStream();
                 tmpOut = socket.getOutputStream();
-            } catch (IOException e) {}
+            } catch (IOException e) {
+                Toast.makeText(mActivity, "Could not connect to ChatRoom, now exiting", Toast.LENGTH_SHORT).show();
+                Intent i = new Intent(mActivity, MainActivity.class);
+                mActivity.startActivity(i);
+                mActivity.finish();
+            }
 
             mmInStream = tmpIn;
             mmOutStream = tmpOut;
@@ -185,19 +199,31 @@ public class ChatManager {
         public void run() {
             while (true) {
                 try {
-                    byte[] buffer = new byte[1024];
-                    mmInStream.read(buffer);
-                    int type = buffer[0];
-                    int nameLength = buffer[1];
+                    int type = mmInStream.read();
+                    int packetLength = mmInStream.read();
+                    int nameLength = mmInStream.read();
 
                     if (type == MESSAGE_SEND || type == MESSAGE_SEND_IMAGE) {
+                        // We add 3 bytes to reinsert the type, packet length, and name length.
+                        byte[] buffer = new byte[packetLength + 3];
+                        buffer[0] = (byte) type;
+                        buffer[1] = (byte) packetLength;
+                        buffer[2] = (byte) nameLength;
+
+                        mmInStream.read(buffer, 3, packetLength);
                         mHandler.obtainMessage(type, -1, -1, buffer)
                                 .sendToTarget();
-                    } else if (type == MESSAGE_RECEIVE || type == MESSAGE_RECEIVE_IMAGE) {
-                        mHandler.obtainMessage(type, nameLength, -1, Arrays.copyOfRange(buffer, 2, buffer.length))
+                    } else if (type == MESSAGE_RECEIVE || type == MESSAGE_NAME) {
+                        byte[] buffer = new byte[packetLength];
+
+                        mmInStream.read(buffer);
+                        mHandler.obtainMessage(type, nameLength, -1, buffer)
                                 .sendToTarget();
-                    } else {
-                        mHandler.obtainMessage(type, -1, -1, Arrays.copyOfRange(buffer, 1, buffer.length))
+                    } else if (type == MESSAGE_RECEIVE_IMAGE) {
+                        byte[] buffer = new byte[packetLength];
+
+                        mmInStream.read(buffer);
+                        mHandler.obtainMessage(type, nameLength, -1, buffer)
                                 .sendToTarget();
                     }
                 } catch (IOException e) {
@@ -213,6 +239,30 @@ public class ChatManager {
             } catch (IOException e) {}
         }
 
+    }
+
+    static class FlushedInputStream extends FilterInputStream {
+        public FlushedInputStream(InputStream inputStream) {
+            super(inputStream);
+        }
+
+        @Override
+        public long skip(long n) throws IOException {
+            long totalBytesSkipped = 0L;
+            while (totalBytesSkipped < n) {
+                long bytesSkipped = in.skip(n - totalBytesSkipped);
+                if (bytesSkipped == 0L) {
+                    int b = read();
+                    if (b < 0) {
+                        break;  // we reached EOF
+                    } else {
+                        bytesSkipped = 1; // we read one byte
+                    }
+                }
+                totalBytesSkipped += bytesSkipped;
+            }
+            return totalBytesSkipped;
+        }
     }
 
 }

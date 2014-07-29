@@ -1,4 +1,4 @@
-package com.alexkang.btchatroom;
+package com.alexkang.bluechat;
 
 import android.app.Activity;
 import android.app.ProgressDialog;
@@ -99,11 +99,13 @@ public class ClientActivity extends Activity {
 
         try {
             byte[] messageBytes = mMessage.getText().toString().getBytes();
+            byte[] senderBytes = mBluetoothAdapter.getName().getBytes();
 
-            ByteArrayOutputStream output = new ByteArrayOutputStream(messageBytes.length + 1);
+            ByteArrayOutputStream output = new ByteArrayOutputStream(senderBytes.length + messageBytes.length + 3);
             output.write(ChatManager.MESSAGE_SEND);
-            output.write(mBluetoothAdapter.getName().length());
-            output.write(mBluetoothAdapter.getName().getBytes());
+            output.write(senderBytes.length + messageBytes.length);
+            output.write(senderBytes.length);
+            output.write(senderBytes);
             output.write(messageBytes);
 
             byteArray = output.toByteArray();
@@ -125,13 +127,16 @@ public class ClientActivity extends Activity {
     private void sendImage(Bitmap bitmap) {
         try {
             ByteArrayOutputStream output = new ByteArrayOutputStream();
-            ByteArrayOutputStream imageArray = new ByteArrayOutputStream();
+            byte[] senderBytes = mBluetoothAdapter.getName().getBytes();
 
             output.write(ChatManager.MESSAGE_SEND_IMAGE);
-            bitmap.compress(Bitmap.CompressFormat.JPEG, 25, imageArray);
-            output.write(imageArray.toByteArray());
+            output.write(senderBytes.length);
+            output.write(senderBytes.length);
+            output.write(senderBytes);
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 15, output);
 
             byte[] byteArray = output.toByteArray();
+            byteArray[1] = (byte) (byteArray.length - 3);
 
             mChatManager.write(byteArray);
         } catch (Exception e) {}

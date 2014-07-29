@@ -1,4 +1,4 @@
-package com.alexkang.btchatroom;
+package com.alexkang.bluechat;
 
 import android.app.Application;
 import android.test.ApplicationTestCase;
