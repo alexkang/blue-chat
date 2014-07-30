@@ -166,7 +166,7 @@ public class HostActivity extends Activity {
             cursor.close();
 
             sendImage(BitmapFactory.decodeFile(picturePath));
-        } else {
+        } else if (requestCode != PICK_IMAGE) {
             Toast.makeText(this, "Something went wrong, now exiting.", Toast.LENGTH_LONG).show();
             finish();
         }
