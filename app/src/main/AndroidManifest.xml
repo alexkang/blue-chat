@@ -10,9 +10,10 @@
         android:allowBackup="true"
         android:icon="@drawable/ic_launcher"
         android:label="@string/app_name"
+        android:logo="@drawable/ic_launcher_white"
         android:theme="@style/AppTheme" >
         <activity
-            android:name="com.alexkang.bluechat.MainActivity"
+            android:name=".MainActivity"
             android:label="@string/app_name"
             android:screenOrientation="portrait" >
             <intent-filter>
@@ -22,21 +23,21 @@
             </intent-filter>
         </activity>
         <activity
-            android:name="com.alexkang.bluechat.HostActivity"
+            android:name=".HostActivity"
             android:label="@string/title_activity_host"
-            android:parentActivityName="com.alexkang.bluechat.MainActivity"
-            android:windowSoftInputMode="stateHidden"
-            android:screenOrientation="portrait" >
+            android:parentActivityName=".MainActivity"
+            android:screenOrientation="portrait"
+            android:windowSoftInputMode="stateHidden" >
             <meta-data
                 android:name="android.support.PARENT_ACTIVITY"
                 android:value="com.alexkang.btchatroom.MainActivity" />
         </activity>
         <activity
-            android:name="com.alexkang.bluechat.ClientActivity"
+            android:name=".ClientActivity"
             android:label="@string/title_activity_client"
-            android:parentActivityName="com.alexkang.bluechat.MainActivity"
-            android:windowSoftInputMode="stateHidden"
-            android:screenOrientation="portrait" >
+            android:parentActivityName=".MainActivity"
+            android:screenOrientation="portrait"
+            android:windowSoftInputMode="stateHidden" >
             <meta-data
                 android:name="android.support.PARENT_ACTIVITY"
                 android:value="com.alexkang.btchatroom.MainActivity" />

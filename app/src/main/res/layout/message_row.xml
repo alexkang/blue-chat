@@ -2,9 +2,12 @@
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="95dp"
-    android:background="@drawable/layer_card_background"
-    android:orientation="vertical"
-    android:padding="7dp" >
+    android:background="@drawable/message_background"
+    android:paddingTop="7dp"
+    android:paddingBottom="7dp"
+    android:paddingLeft="10dp"
+    android:paddingRight="10dp"
+    android:orientation="vertical" >
 
     <TextView
         android:id="@+id/name"

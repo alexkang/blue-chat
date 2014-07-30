@@ -2,4 +2,10 @@
     xmlns:tools="http://schemas.android.com/tools"
     tools:context="com.alexkang.bluechat.HostActivity" >
 
+    <item android:id="@+id/action_reopen"
+        android:title="@string/action_reopen"
+        android:icon="@drawable/ic_action_group"
+        android:orderInCategory="100"
+        android:showAsAction="always" />
+
 </menu>

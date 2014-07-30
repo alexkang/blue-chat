@@ -7,6 +7,7 @@ import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
 import android.content.BroadcastReceiver;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.database.Cursor;
@@ -87,6 +88,12 @@ public class ClientActivity extends Activity {
         });
 
         mProgressDialog.setMessage("Looking for ChatRoom...");
+        mProgressDialog.setOnCancelListener(new DialogInterface.OnCancelListener() {
+            @Override
+            public void onCancel(DialogInterface dialogInterface) {
+                finish();
+            }
+        });
         mProgressDialog.show();
     }
 
@@ -144,7 +151,10 @@ public class ClientActivity extends Activity {
 
     @Override
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
-        if (resultCode == RESULT_OK && requestCode == PICK_IMAGE) {
+        if (resultCode == RESULT_OK && requestCode == MainActivity.REQUEST_ENABLE_BT) {
+            Toast.makeText(this, "Bluetooth successfully enabled!", Toast.LENGTH_SHORT).show();
+            mChatManager.restartConnection();
+        } else if (resultCode == RESULT_OK && requestCode == PICK_IMAGE) {
             Uri image = data.getData();
             String[] filePathColumn = { MediaStore.Images.Media.DATA };
             Cursor cursor = getContentResolver().query(image, filePathColumn, null, null, null);
@@ -175,7 +185,19 @@ public class ClientActivity extends Activity {
     public void onResume() {
         super.onResume();
 
-        mChatManager.restartConnection();
+        if (!mBluetoothAdapter.isEnabled()) {
+            Intent i = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
+            startActivityForResult(i, MainActivity.REQUEST_ENABLE_BT);
+        } else {
+            mChatManager.restartConnection();
+        }
+    }
+
+    @Override
+    public void onStop() {
+        super.onStop();
+
+        mBluetoothAdapter.disable();
     }
 
     @Override

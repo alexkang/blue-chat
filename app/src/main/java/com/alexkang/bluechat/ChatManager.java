@@ -8,6 +8,9 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.os.Handler;
 import android.os.Message;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.AbsListView;
 import android.widget.ListView;
 import android.widget.Toast;
 
@@ -120,6 +123,11 @@ public class ChatManager {
         mMessageList = new ArrayList<MessageBox>();
         mFeedAdapter = new MessageFeedAdapter(mActivity, mMessageList);
         mMessageFeed.setAdapter(mFeedAdapter);
+
+        View footer = new View(mActivity);
+        footer.setLayoutParams(new AbsListView.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 225));
+        footer.setBackgroundColor(mActivity.getResources().getColor(android.R.color.transparent));
+        mMessageFeed.addFooterView(footer, null, false);
     }
 
     public void startConnection(BluetoothSocket socket) {

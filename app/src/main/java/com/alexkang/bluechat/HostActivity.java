@@ -13,6 +13,11 @@ import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.MediaStore;
+import android.text.Editable;
+import android.text.TextWatcher;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.inputmethod.EditorInfo;
 import android.widget.Button;
@@ -61,10 +66,27 @@ public class HostActivity extends Activity {
             }
         });
 
-        initializeBluetooth();
+        initializeRoom();
     }
 
-    public void initializeBluetooth() {
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        getMenuInflater().inflate(R.menu.host, menu);
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        int id = item.getItemId();
+        if (id == R.id.action_reopen) {
+            mAcceptThread.cancel();
+            initializeBluetooth();
+            return true;
+        }
+        return super.onOptionsItemSelected(item);
+    }
+
+    public void initializeRoom() {
         mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
 
         final EditText nameInput = new EditText(this);
@@ -74,7 +96,6 @@ public class HostActivity extends Activity {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setMessage("Enter your ChatRoom name");
         builder.setView(nameInput);
-        builder.setCancelable(false);
         builder.setPositiveButton("Submit", new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialogInterface, int which) {
@@ -84,9 +105,7 @@ public class HostActivity extends Activity {
                     getActionBar().setTitle(mChatRoomName);
                 }
 
-                Intent i = new Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE);
-                i.putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 300);
-                startActivityForResult(i, REQUEST_DISCOVERABLE);
+                initializeBluetooth();
             }
         });
         builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
@@ -95,7 +114,38 @@ public class HostActivity extends Activity {
                 finish();
             }
         });
-        builder.show();
+        builder.setOnCancelListener(new DialogInterface.OnCancelListener() {
+            @Override
+            public void onCancel(DialogInterface dialogInterface) {
+                finish();
+            }
+        });
+
+        final AlertDialog dialog = builder.show();
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(false);
+
+        nameInput.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence charSequence, int i, int i2, int i3) {}
+
+            @Override
+            public void onTextChanged(CharSequence charSequence, int i, int i2, int i3) {
+                if (charSequence.length() > 0) {
+                    dialog.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(true);
+                } else {
+                    dialog.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(false);
+                }
+            }
+
+            @Override
+            public void afterTextChanged(Editable editable) {}
+        });
+    }
+
+    private void initializeBluetooth() {
+        Intent i = new Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE);
+        i.putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 300);
+        startActivityForResult(i, REQUEST_DISCOVERABLE);
     }
 
     private void uploadAttachment() {
@@ -178,6 +228,7 @@ public class HostActivity extends Activity {
 
         try {
             mAcceptThread.cancel();
+            mBluetoothAdapter.disable();
         } catch (Exception e) {}
     }
 
