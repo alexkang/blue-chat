@@ -198,6 +198,9 @@ public class ClientActivity extends Activity {
         super.onStop();
 
         mBluetoothAdapter.disable();
+        try {
+            mProgressDialog.dismiss();
+        } catch (Exception e) {}
     }
 
     @Override
