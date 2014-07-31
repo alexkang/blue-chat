@@ -1,4 +1,5 @@
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:animateLayoutChanges="true"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/light_gray"
@@ -13,6 +14,7 @@
         android:footerDividersEnabled="false" />
 
     <LinearLayout
+        android:id="@+id/send_bar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:background="@drawable/editor_background"

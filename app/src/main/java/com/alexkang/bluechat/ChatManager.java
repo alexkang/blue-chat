@@ -1,20 +1,26 @@
 package com.alexkang.bluechat;
 
 import android.app.Activity;
+import android.app.ProgressDialog;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothSocket;
+import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.os.Handler;
 import android.os.Message;
+import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.AbsListView;
+import android.widget.EditText;
+import android.widget.LinearLayout;
 import android.widget.ListView;
+import android.widget.TextView;
 import android.widget.Toast;
 
-import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -22,9 +28,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 
-/**
- * Created by Alex on 7/24/2014.
- */
 public class ChatManager {
 
     public static final int MESSAGE_NAME = 3;
@@ -38,12 +41,17 @@ public class ChatManager {
 
     private ArrayList<MessageBox> mMessageList;
     private MessageFeedAdapter mFeedAdapter;
+    private int currItem = 0;
 
     private Activity mActivity;
     private ListView mMessageFeed;
+    private LinearLayout mSendBar;
+    private EditText mMessageText;
 
     private BluetoothSocket mSocket;
     private ConnectedThread mConnectedThread;
+
+    private ProgressDialog mProgressDialog;
 
     private final Handler mHandler = new Handler() {
 
@@ -52,6 +60,7 @@ public class ChatManager {
             switch (msg.what) {
                 case MESSAGE_NAME:
                     if (!isHost) {
+
                         byte[] nameBuffer = (byte[]) msg.obj;
                         String name = new String(nameBuffer);
 
@@ -59,6 +68,8 @@ public class ChatManager {
                             mActivity.getActionBar().setTitle(name);
                         }
 
+                        BluetoothAdapter.getDefaultAdapter().cancelDiscovery();
+                        mProgressDialog.dismiss();
                         Toast.makeText(mActivity, "Connected to " + name, Toast.LENGTH_SHORT).show();
                     }
                     break;
@@ -114,11 +125,24 @@ public class ChatManager {
     public ChatManager(Activity activity, boolean isHost) {
         mActivity = activity;
         mMessageFeed = (ListView) mActivity.findViewById(R.id.message_feed);
+        mSendBar = (LinearLayout) mActivity.findViewById(R.id.send_bar);
+        mMessageText = (EditText) mActivity.findViewById(R.id.message);
         this.isHost = isHost;
 
         if (isHost) {
             connections = new ArrayList<ConnectedThread>();
         }
+
+        mMessageText.setOnEditorActionListener(new TextView.OnEditorActionListener() {
+            @Override
+            public boolean onEditorAction(TextView textView, int i, KeyEvent keyEvent) {
+                currItem = 0;
+                InputMethodManager imm = (InputMethodManager) mActivity.getSystemService(Context.INPUT_METHOD_SERVICE);
+                imm.hideSoftInputFromWindow(mMessageText.getWindowToken(), 0);
+                mMessageText.clearFocus();
+                return true;
+            }
+        });
 
         mMessageList = new ArrayList<MessageBox>();
         mFeedAdapter = new MessageFeedAdapter(mActivity, mMessageList);
@@ -127,7 +151,29 @@ public class ChatManager {
         View footer = new View(mActivity);
         footer.setLayoutParams(new AbsListView.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 225));
         footer.setBackgroundColor(mActivity.getResources().getColor(android.R.color.transparent));
+
         mMessageFeed.addFooterView(footer, null, false);
+        mMessageFeed.setOnScrollListener(new AbsListView.OnScrollListener() {
+
+            @Override
+            public void onScrollStateChanged(AbsListView absListView, int i) {
+
+            }
+
+            @Override
+            public void onScroll(AbsListView absListView, int firstItem, int i1, int i2) {
+                if (!mMessageText.isFocused() && Math.abs(currItem - firstItem) >= 2) {
+                    if (firstItem > currItem ||
+                            mMessageFeed.getLastVisiblePosition() == mMessageFeed.getCount() - 1) {
+                        mSendBar.setVisibility(View.VISIBLE);
+                    } else if (firstItem < currItem) {
+                        mSendBar.setVisibility(View.INVISIBLE);
+                    }
+
+                    currItem = firstItem;
+                }
+            }
+        });
     }
 
     public void startConnection(BluetoothSocket socket) {
@@ -140,6 +186,11 @@ public class ChatManager {
         }
     }
 
+    public void startConnection(BluetoothSocket socket, ProgressDialog progressDialog) {
+        startConnection(socket);
+        mProgressDialog = progressDialog;
+    }
+
     public void restartConnection() {
         if (!isHost && mSocket != null) {
             try {
@@ -147,7 +198,7 @@ public class ChatManager {
                 mConnectedThread = new ConnectedThread(mSocket);
                 mConnectedThread.start();
             } catch (IOException e) {
-                Toast.makeText(mActivity, "Failed to reconnect, now exiting", Toast.LENGTH_SHORT).show();
+                Toast.makeText(mActivity, "Failed to reconnect", Toast.LENGTH_SHORT).show();
                 Intent i = new Intent(mActivity, MainActivity.class);
                 mActivity.startActivity(i);
                 mActivity.finish();
@@ -168,7 +219,7 @@ public class ChatManager {
         }
     }
 
-    public void writeName(byte[] byteArray) {
+    public void writeChatRoomName(byte[] byteArray) {
         for (ConnectedThread connection : connections) {
             connection.write(byteArray);
         }
@@ -246,7 +297,10 @@ public class ChatManager {
             try {
                 mmOutStream.write(byteArray);
                 mmOutStream.flush();
-            } catch (IOException e) {}
+            } catch (IOException e) {
+                System.err.println("Failed to write bytes");
+                System.err.println(e.toString());
+            }
         }
 
     }

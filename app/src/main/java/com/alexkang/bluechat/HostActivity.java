@@ -16,7 +16,6 @@ import android.provider.MediaStore;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.view.Menu;
-import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.inputmethod.EditorInfo;
@@ -26,6 +25,7 @@ import android.widget.Toast;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.ArrayList;
 
 public class HostActivity extends Activity {
 
@@ -33,11 +33,10 @@ public class HostActivity extends Activity {
     public static final int PICK_IMAGE = 2;
 
     private EditText mMessage;
-    private Button mAttachButton;
-    private Button mSendButton;
 
     private String mChatRoomName;
     private BluetoothAdapter mBluetoothAdapter;
+    private ArrayList<BluetoothSocket> mSockets;
     private AcceptThread mAcceptThread;
 
     private ChatManager mChatManager;
@@ -47,9 +46,9 @@ public class HostActivity extends Activity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_chatroom);
 
+        Button mAttachButton = (Button) findViewById(R.id.attach);
+        Button mSendButton = (Button) findViewById(R.id.send);
         mMessage = (EditText) findViewById(R.id.message);
-        mAttachButton = (Button) findViewById(R.id.attach);
-        mSendButton = (Button) findViewById(R.id.send);
         mChatManager = new ChatManager(this, true);
 
         mAttachButton.setOnClickListener(new View.OnClickListener() {
@@ -89,10 +88,12 @@ public class HostActivity extends Activity {
     public void initializeRoom() {
         mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
 
+        // Set up ChatRoom naming input
         final EditText nameInput = new EditText(this);
         nameInput.setSingleLine();
         nameInput.setImeOptions(EditorInfo.IME_ACTION_DONE);
 
+        // Set up ChatRoom naming dialog
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setMessage("Enter your ChatRoom name");
         builder.setView(nameInput);
@@ -121,6 +122,7 @@ public class HostActivity extends Activity {
             }
         });
 
+        // Show the dialog and disable the submit button until the name is longer than 0 characters
         final AlertDialog dialog = builder.show();
         dialog.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(false);
 
@@ -143,6 +145,8 @@ public class HostActivity extends Activity {
     }
 
     private void initializeBluetooth() {
+        mSockets = new ArrayList<BluetoothSocket>();
+
         Intent i = new Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE);
         i.putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 300);
         startActivityForResult(i, REQUEST_DISCOVERABLE);
@@ -197,7 +201,10 @@ public class HostActivity extends Activity {
             byteArray[1] = (byte) (byteArray.length - 3);
 
             mChatManager.write(byteArray);
-        } catch (Exception e) {}
+        } catch (Exception e) {
+            System.err.println("Failed to send image");
+            System.err.println(e.toString());
+        }
     }
 
     @Override
@@ -216,7 +223,7 @@ public class HostActivity extends Activity {
             cursor.close();
 
             sendImage(BitmapFactory.decodeFile(picturePath));
-        } else if (requestCode != PICK_IMAGE) {
+        } else if (requestCode == REQUEST_DISCOVERABLE) {
             Toast.makeText(this, "Something went wrong, now exiting.", Toast.LENGTH_LONG).show();
             finish();
         }
@@ -226,15 +233,26 @@ public class HostActivity extends Activity {
     public void onStop() {
         super.onStop();
 
-        try {
+        if (mAcceptThread != null) {
             mAcceptThread.cancel();
-            mBluetoothAdapter.disable();
-        } catch (Exception e) {}
+        }
+
+        if (mSockets != null) {
+            for (BluetoothSocket socket : mSockets) {
+                try {
+                    socket.close();
+                } catch (IOException e) {
+                    System.err.println("Failed to close socket");
+                    System.err.println(e.toString());
+                }
+            }
+        }
     }
 
     private void manageSocket(BluetoothSocket socket) {
         Toast.makeText(this, socket.getRemoteDevice().getName() + " connected", Toast.LENGTH_SHORT).show();
         mChatManager.startConnection(socket);
+        mSockets.add(socket);
         byte[] byteArray;
 
         try {
@@ -248,7 +266,7 @@ public class HostActivity extends Activity {
             return;
         }
 
-        mChatManager.writeName(byteArray);
+        mChatManager.writeChatRoomName(byteArray);
     }
 
     private class AcceptThread extends Thread {
@@ -265,7 +283,10 @@ public class HostActivity extends Activity {
                         listenUsingRfcommWithServiceRecord(
                                 mChatRoomName, java.util.UUID.fromString(MainActivity.UUID)
                         );
-            } catch (IOException e) {}
+            } catch (IOException e) {
+                System.err.println("Failed to set up Accept Thread");
+                System.err.println(e.toString());
+            }
 
             mmServerSocket = tmp;
         }
@@ -295,7 +316,9 @@ public class HostActivity extends Activity {
             try {
                 isAccepting = false;
                 mmServerSocket.close();
-            } catch (IOException e) {}
+            } catch (IOException e) {
+                System.err.println(e.toString());
+            }
         }
 
     }

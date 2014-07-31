@@ -3,6 +3,7 @@ package com.alexkang.bluechat;
 import android.app.Activity;
 import android.app.ProgressDialog;
 import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothClass;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
 import android.content.BroadcastReceiver;
@@ -15,7 +16,6 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.Bundle;
-import android.os.ParcelUuid;
 import android.provider.MediaStore;
 import android.view.View;
 import android.widget.Button;
@@ -24,18 +24,19 @@ import android.widget.Toast;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.util.UUID;
+import java.util.ArrayList;
 
 public class ClientActivity extends Activity {
 
     public static final int PICK_IMAGE = 2;
 
+    private ArrayList<Integer> acceptableDevices = new ArrayList<Integer>();
+
     private EditText mMessage;
-    private Button mAttachButton;
-    private Button mSendButton;
     private ProgressDialog mProgressDialog;
 
     private BluetoothAdapter mBluetoothAdapter;
+    private BluetoothSocket mSocket;
 
     private ChatManager mChatManager;
 
@@ -45,18 +46,11 @@ public class ClientActivity extends Activity {
             String action = intent.getAction();
 
             if (BluetoothDevice.ACTION_FOUND.equals(action)) {
-                boolean validHost = false;
-                BluetoothDevice mHost = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
-                ParcelUuid[] uuids = mHost.getUuids();
+                BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+                int deviceClass = device.getBluetoothClass().getDeviceClass();
 
-                for (ParcelUuid uuid : uuids) {
-                    if (uuid.getUuid().equals(UUID.fromString(MainActivity.UUID))) {
-                        validHost = true;
-                    }
-                }
-
-                if (validHost || true) {
-                    new ConnectThread(mHost).start();
+                if (acceptableDevices.contains(deviceClass)) {
+                    new ConnectThread(device).start();
                 }
             }
         }
@@ -67,9 +61,13 @@ public class ClientActivity extends Activity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_chatroom);
 
+        acceptableDevices.add(BluetoothClass.Device.COMPUTER_HANDHELD_PC_PDA);
+        acceptableDevices.add(BluetoothClass.Device.COMPUTER_PALM_SIZE_PC_PDA);
+        acceptableDevices.add(BluetoothClass.Device.PHONE_SMART);
+
+        Button mAttachButton = (Button) findViewById(R.id.attach);
+        Button mSendButton = (Button) findViewById(R.id.send);
         mMessage = (EditText) findViewById(R.id.message);
-        mAttachButton = (Button) findViewById(R.id.attach);
-        mSendButton = (Button) findViewById(R.id.send);
         mChatManager = new ChatManager(this, false);
         mProgressDialog = new ProgressDialog(this);
 
@@ -95,6 +93,12 @@ public class ClientActivity extends Activity {
             }
         });
         mProgressDialog.show();
+    }
+
+    private void startDeviceSearch() {
+        IntentFilter filter = new IntentFilter(BluetoothDevice.ACTION_FOUND);
+        registerReceiver(mReceiver, filter);
+        mBluetoothAdapter.startDiscovery();
     }
 
     private void sendMessage() {
@@ -146,14 +150,17 @@ public class ClientActivity extends Activity {
             byteArray[1] = (byte) (byteArray.length - 3);
 
             mChatManager.write(byteArray);
-        } catch (Exception e) {}
+        } catch (Exception e) {
+            System.err.println("Failed to send image");
+            System.err.println(e.toString());
+        }
     }
 
     @Override
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
         if (resultCode == RESULT_OK && requestCode == MainActivity.REQUEST_ENABLE_BT) {
             Toast.makeText(this, "Bluetooth successfully enabled!", Toast.LENGTH_SHORT).show();
-            mChatManager.restartConnection();
+            startDeviceSearch();
         } else if (resultCode == RESULT_OK && requestCode == PICK_IMAGE) {
             Uri image = data.getData();
             String[] filePathColumn = { MediaStore.Images.Media.DATA };
@@ -164,7 +171,7 @@ public class ClientActivity extends Activity {
             cursor.close();
 
             sendImage(BitmapFactory.decodeFile(picturePath));
-        } else {
+        } else if (requestCode == MainActivity.REQUEST_ENABLE_BT) {
             Toast.makeText(this, "Something went wrong, now exiting.", Toast.LENGTH_LONG).show();
             finish();
         }
@@ -175,10 +182,10 @@ public class ClientActivity extends Activity {
         super.onStart();
 
         mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
-        IntentFilter filter = new IntentFilter(BluetoothDevice.ACTION_FOUND);
 
-        registerReceiver(mReceiver, filter);
-        mBluetoothAdapter.startDiscovery();
+        if (mBluetoothAdapter.isEnabled()) {
+            startDeviceSearch();
+        }
     }
 
     @Override
@@ -197,10 +204,20 @@ public class ClientActivity extends Activity {
     public void onStop() {
         super.onStop();
 
-        mBluetoothAdapter.disable();
-        try {
+        if (mSocket != null) {
+            try {
+                mSocket.close();
+            } catch (IOException e) {
+                System.err.println("Failed to close socket");
+                System.err.println(e.toString());
+            }
+        }
+
+        if (mProgressDialog.isShowing()) {
             mProgressDialog.dismiss();
-        } catch (Exception e) {}
+        }
+
+        mBluetoothAdapter.cancelDiscovery();
     }
 
     @Override
@@ -211,8 +228,9 @@ public class ClientActivity extends Activity {
     }
 
     private void manageSocket(BluetoothSocket socket) {
-        mChatManager.startConnection(socket);
-        mProgressDialog.dismiss();
+        System.out.println("Socket managed");
+        mSocket = socket;
+        mChatManager.startConnection(socket, mProgressDialog);
     }
 
     private class ConnectThread extends Thread {
@@ -225,14 +243,15 @@ public class ClientActivity extends Activity {
             try {
                 tmp = device.createRfcommSocketToServiceRecord(
                         java.util.UUID.fromString(MainActivity.UUID));
-            } catch (IOException e) {}
+            } catch (Exception e) {
+                System.err.println("Failed to connect");
+                System.err.println(e.toString());
+            }
 
             mmSocket = tmp;
         }
 
         public void run() {
-            mBluetoothAdapter.cancelDiscovery();
-
             try {
                 mmSocket.connect();
             } catch (IOException e) {

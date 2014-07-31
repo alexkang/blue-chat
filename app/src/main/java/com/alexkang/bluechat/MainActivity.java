@@ -14,18 +14,13 @@ public class MainActivity extends Activity {
     public static final int REQUEST_ENABLE_BT = 0;
     public static final String UUID = "28286a80-137b-11e4-bbe8-0002a5d5c51b";
 
-    private Button mHostButton;
-    private Button mJoinButton;
-
-    private BluetoothAdapter mBluetoothAdapter;
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        mHostButton = (Button) findViewById(R.id.host_button);
-        mJoinButton = (Button) findViewById(R.id.join_button);
+        Button mHostButton = (Button) findViewById(R.id.host_button);
+        Button mJoinButton = (Button) findViewById(R.id.join_button);
 
         mHostButton.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -56,24 +51,9 @@ public class MainActivity extends Activity {
     public void onResume() {
         super.onResume();
 
-        mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
+        BluetoothAdapter mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
         if (mBluetoothAdapter == null) {
             Toast.makeText(this, "Bluetooth not supported on this device, now exiting.", Toast.LENGTH_LONG).show();
-            finish();
-        }
-
-        if (!mBluetoothAdapter.isEnabled()) {
-            Intent i = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
-            startActivityForResult(i, REQUEST_ENABLE_BT);
-        }
-    }
-
-    @Override
-    public void onActivityResult(int requestCode, int resultCode, Intent data) {
-        if (resultCode == RESULT_OK && requestCode == REQUEST_ENABLE_BT) {
-            Toast.makeText(this, "Bluetooth successfully enabled!", Toast.LENGTH_SHORT).show();
-        } else {
-            Toast.makeText(this, "Something went wrong, now exiting.", Toast.LENGTH_LONG).show();
             finish();
         }
     }
