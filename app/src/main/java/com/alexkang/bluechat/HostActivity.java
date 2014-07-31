@@ -5,13 +5,16 @@ import android.app.AlertDialog;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothServerSocket;
 import android.bluetooth.BluetoothSocket;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.Bundle;
+import android.preference.PreferenceManager;
 import android.provider.MediaStore;
 import android.text.Editable;
 import android.text.TextWatcher;
@@ -19,6 +22,7 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.inputmethod.EditorInfo;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.Toast;
@@ -34,6 +38,7 @@ public class HostActivity extends Activity {
 
     private EditText mMessage;
 
+    private String mUsername;
     private String mChatRoomName;
     private BluetoothAdapter mBluetoothAdapter;
     private ArrayList<BluetoothSocket> mSockets;
@@ -78,7 +83,9 @@ public class HostActivity extends Activity {
     public boolean onOptionsItemSelected(MenuItem item) {
         int id = item.getItemId();
         if (id == R.id.action_reopen) {
-            mAcceptThread.cancel();
+            if (mAcceptThread != null) {
+                mAcceptThread.cancel();
+            }
             initializeBluetooth();
             return true;
         }
@@ -87,6 +94,11 @@ public class HostActivity extends Activity {
 
     public void initializeRoom() {
         mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
+        final InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+
+        // Retrieve username
+        SharedPreferences sharedPref = PreferenceManager.getDefaultSharedPreferences(this);
+        mUsername = sharedPref.getString("username", mBluetoothAdapter.getName());
 
         // Set up ChatRoom naming input
         final EditText nameInput = new EditText(this);
@@ -106,12 +118,14 @@ public class HostActivity extends Activity {
                     getActionBar().setTitle(mChatRoomName);
                 }
 
+                imm.hideSoftInputFromWindow(nameInput.getWindowToken(), 0);
                 initializeBluetooth();
             }
         });
         builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialogInterface, int i) {
+                imm.hideSoftInputFromWindow(nameInput.getWindowToken(), 0);
                 finish();
             }
         });
@@ -125,6 +139,7 @@ public class HostActivity extends Activity {
         // Show the dialog and disable the submit button until the name is longer than 0 characters
         final AlertDialog dialog = builder.show();
         dialog.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(false);
+        imm.toggleSoftInput(InputMethodManager.SHOW_FORCED, 0);
 
         nameInput.addTextChangedListener(new TextWatcher() {
             @Override
@@ -168,7 +183,7 @@ public class HostActivity extends Activity {
 
         try {
             byte[] messageBytes = mMessage.getText().toString().getBytes();
-            byte[] senderBytes = mBluetoothAdapter.getName().getBytes();
+            byte[] senderBytes = mUsername.getBytes();
 
             ByteArrayOutputStream output = new ByteArrayOutputStream(senderBytes.length + messageBytes.length + 3);
             output.write(ChatManager.MESSAGE_RECEIVE);
@@ -189,7 +204,7 @@ public class HostActivity extends Activity {
     private void sendImage(Bitmap bitmap) {
         try {
             ByteArrayOutputStream output = new ByteArrayOutputStream();
-            byte[] senderBytes = mBluetoothAdapter.getName().getBytes();
+            byte[] senderBytes = mUsername.getBytes();
 
             output.write(ChatManager.MESSAGE_RECEIVE_IMAGE);
             output.write(senderBytes.length);
@@ -224,14 +239,13 @@ public class HostActivity extends Activity {
 
             sendImage(BitmapFactory.decodeFile(picturePath));
         } else if (requestCode == REQUEST_DISCOVERABLE) {
-            Toast.makeText(this, "Something went wrong, now exiting.", Toast.LENGTH_LONG).show();
-            finish();
+            Toast.makeText(this, "New users cannot join your chat room", Toast.LENGTH_SHORT).show();
         }
     }
 
     @Override
-    public void onStop() {
-        super.onStop();
+    public void onDestroy() {
+        super.onDestroy();
 
         if (mAcceptThread != null) {
             mAcceptThread.cancel();
@@ -250,7 +264,7 @@ public class HostActivity extends Activity {
     }
 
     private void manageSocket(BluetoothSocket socket) {
-        Toast.makeText(this, socket.getRemoteDevice().getName() + " connected", Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, "New user connected", Toast.LENGTH_SHORT).show();
         mChatManager.startConnection(socket);
         mSockets.add(socket);
         byte[] byteArray;

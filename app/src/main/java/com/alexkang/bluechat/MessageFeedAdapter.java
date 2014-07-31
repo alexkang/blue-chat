@@ -7,10 +7,7 @@ import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.WindowManager;
-import android.widget.AbsListView;
 import android.widget.ArrayAdapter;
-import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
@@ -18,9 +15,6 @@ import android.widget.Toast;
 
 import java.util.ArrayList;
 
-/**
- * Created by Alex on 7/18/2014.
- */
 public class MessageFeedAdapter extends ArrayAdapter<MessageBox> {
 
     Context mContext;

@@ -11,11 +11,13 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.Bundle;
+import android.preference.PreferenceManager;
 import android.provider.MediaStore;
 import android.view.View;
 import android.widget.Button;
@@ -35,6 +37,7 @@ public class ClientActivity extends Activity {
     private EditText mMessage;
     private ProgressDialog mProgressDialog;
 
+    private String mUsername;
     private BluetoothAdapter mBluetoothAdapter;
     private BluetoothSocket mSocket;
 
@@ -110,7 +113,7 @@ public class ClientActivity extends Activity {
 
         try {
             byte[] messageBytes = mMessage.getText().toString().getBytes();
-            byte[] senderBytes = mBluetoothAdapter.getName().getBytes();
+            byte[] senderBytes = mUsername.getBytes();
 
             ByteArrayOutputStream output = new ByteArrayOutputStream(senderBytes.length + messageBytes.length + 3);
             output.write(ChatManager.MESSAGE_SEND);
@@ -138,7 +141,7 @@ public class ClientActivity extends Activity {
     private void sendImage(Bitmap bitmap) {
         try {
             ByteArrayOutputStream output = new ByteArrayOutputStream();
-            byte[] senderBytes = mBluetoothAdapter.getName().getBytes();
+            byte[] senderBytes = mUsername.getBytes();
 
             output.write(ChatManager.MESSAGE_SEND_IMAGE);
             output.write(senderBytes.length);
@@ -172,7 +175,7 @@ public class ClientActivity extends Activity {
 
             sendImage(BitmapFactory.decodeFile(picturePath));
         } else if (requestCode == MainActivity.REQUEST_ENABLE_BT) {
-            Toast.makeText(this, "Something went wrong, now exiting.", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, "Bluetooth not enabled", Toast.LENGTH_SHORT).show();
             finish();
         }
     }
@@ -182,6 +185,9 @@ public class ClientActivity extends Activity {
         super.onStart();
 
         mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
+
+        SharedPreferences sharedPref = PreferenceManager.getDefaultSharedPreferences(this);
+        mUsername = sharedPref.getString("username", mBluetoothAdapter.getName());
 
         if (mBluetoothAdapter.isEnabled()) {
             startDeviceSearch();
@@ -201,8 +207,10 @@ public class ClientActivity extends Activity {
     }
 
     @Override
-    public void onStop() {
-        super.onStop();
+    public void onDestroy() {
+        super.onDestroy();
+
+        unregisterReceiver(mReceiver);
 
         if (mSocket != null) {
             try {
@@ -218,13 +226,6 @@ public class ClientActivity extends Activity {
         }
 
         mBluetoothAdapter.cancelDiscovery();
-    }
-
-    @Override
-    public void onDestroy() {
-        super.onDestroy();
-
-        unregisterReceiver(mReceiver);
     }
 
     private void manageSocket(BluetoothSocket socket) {

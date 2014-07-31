@@ -4,21 +4,17 @@ import android.app.Activity;
 import android.app.ProgressDialog;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothSocket;
-import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.os.Handler;
 import android.os.Message;
-import android.view.KeyEvent;
+import android.preference.PreferenceManager;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.inputmethod.InputMethodManager;
 import android.widget.AbsListView;
-import android.widget.EditText;
-import android.widget.LinearLayout;
 import android.widget.ListView;
-import android.widget.TextView;
 import android.widget.Toast;
 
 import java.io.IOException;
@@ -36,17 +32,16 @@ public class ChatManager {
     public static final int MESSAGE_SEND_IMAGE = 6;
     public static final int MESSAGE_RECEIVE_IMAGE = 7;
 
+    SharedPreferences sharedPref;
+
     private boolean isHost;
     private ArrayList<ConnectedThread> connections;
 
     private ArrayList<MessageBox> mMessageList;
     private MessageFeedAdapter mFeedAdapter;
-    private int currItem = 0;
 
     private Activity mActivity;
     private ListView mMessageFeed;
-    private LinearLayout mSendBar;
-    private EditText mMessageText;
 
     private BluetoothSocket mSocket;
     private ConnectedThread mConnectedThread;
@@ -94,7 +89,8 @@ public class ChatManager {
                         receiveMessage = wholeMessage.substring(nameLength);
                     }
 
-                    boolean isSelf = BluetoothAdapter.getDefaultAdapter().getName().equals(name);
+                    String username = sharedPref.getString("username", BluetoothAdapter.getDefaultAdapter().getName());
+                    boolean isSelf = username.equals(name);
                     MessageBox messageBox = new MessageBox(name, receiveMessage, new Date(), isSelf);
                     addMessage(messageBox);
 
@@ -125,55 +121,22 @@ public class ChatManager {
     public ChatManager(Activity activity, boolean isHost) {
         mActivity = activity;
         mMessageFeed = (ListView) mActivity.findViewById(R.id.message_feed);
-        mSendBar = (LinearLayout) mActivity.findViewById(R.id.send_bar);
-        mMessageText = (EditText) mActivity.findViewById(R.id.message);
+        sharedPref = PreferenceManager.getDefaultSharedPreferences(mActivity);
         this.isHost = isHost;
 
         if (isHost) {
             connections = new ArrayList<ConnectedThread>();
         }
 
-        mMessageText.setOnEditorActionListener(new TextView.OnEditorActionListener() {
-            @Override
-            public boolean onEditorAction(TextView textView, int i, KeyEvent keyEvent) {
-                currItem = 0;
-                InputMethodManager imm = (InputMethodManager) mActivity.getSystemService(Context.INPUT_METHOD_SERVICE);
-                imm.hideSoftInputFromWindow(mMessageText.getWindowToken(), 0);
-                mMessageText.clearFocus();
-                return true;
-            }
-        });
-
         mMessageList = new ArrayList<MessageBox>();
         mFeedAdapter = new MessageFeedAdapter(mActivity, mMessageList);
         mMessageFeed.setAdapter(mFeedAdapter);
 
         View footer = new View(mActivity);
-        footer.setLayoutParams(new AbsListView.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 225));
+        footer.setLayoutParams(new AbsListView.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 250));
         footer.setBackgroundColor(mActivity.getResources().getColor(android.R.color.transparent));
 
         mMessageFeed.addFooterView(footer, null, false);
-        mMessageFeed.setOnScrollListener(new AbsListView.OnScrollListener() {
-
-            @Override
-            public void onScrollStateChanged(AbsListView absListView, int i) {
-
-            }
-
-            @Override
-            public void onScroll(AbsListView absListView, int firstItem, int i1, int i2) {
-                if (!mMessageText.isFocused() && Math.abs(currItem - firstItem) >= 2) {
-                    if (firstItem > currItem ||
-                            mMessageFeed.getLastVisiblePosition() == mMessageFeed.getCount() - 1) {
-                        mSendBar.setVisibility(View.VISIBLE);
-                    } else if (firstItem < currItem) {
-                        mSendBar.setVisibility(View.INVISIBLE);
-                    }
-
-                    currItem = firstItem;
-                }
-            }
-        });
     }
 
     public void startConnection(BluetoothSocket socket) {
