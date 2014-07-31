@@ -30,7 +30,7 @@
             android:windowSoftInputMode="stateHidden" >
             <meta-data
                 android:name="android.support.PARENT_ACTIVITY"
-                android:value="com.alexkang.btchatroom.MainActivity" />
+                android:value="com.alexkang.bluechat.MainActivity" />
         </activity>
         <activity
             android:name=".ClientActivity"
@@ -40,7 +40,7 @@
             android:windowSoftInputMode="stateHidden" >
             <meta-data
                 android:name="android.support.PARENT_ACTIVITY"
-                android:value="com.alexkang.btchatroom.MainActivity" />
+                android:value="com.alexkang.bluechat.MainActivity" />
         </activity>
     </application>
 
