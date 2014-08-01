@@ -33,8 +33,8 @@ import java.util.ArrayList;
 
 public class HostActivity extends Activity {
 
-    public static final int REQUEST_DISCOVERABLE = 1;
-    public static final int PICK_IMAGE = 2;
+    public static final int REQUEST_DISCOVERABLE = 0;
+    public static final int PICK_IMAGE = 1;
 
     private EditText mMessage;
 
@@ -170,7 +170,7 @@ public class HostActivity extends Activity {
     private void uploadAttachment() {
         Intent i = new Intent();
         i.setType("image/*");
-        i.setAction(Intent.ACTION_GET_CONTENT);
+        i.setAction(Intent.ACTION_PICK);
         startActivityForResult(Intent.createChooser(i, "Select Picture"), PICK_IMAGE);
     }
 
@@ -183,16 +183,7 @@ public class HostActivity extends Activity {
 
         try {
             byte[] messageBytes = mMessage.getText().toString().getBytes();
-            byte[] senderBytes = mUsername.getBytes();
-
-            ByteArrayOutputStream output = new ByteArrayOutputStream(senderBytes.length + messageBytes.length + 3);
-            output.write(ChatManager.MESSAGE_RECEIVE);
-            output.write(senderBytes.length + messageBytes.length);
-            output.write(senderBytes.length);
-            output.write(senderBytes);
-            output.write(messageBytes);
-
-            byteArray = output.toByteArray();
+            byteArray = mChatManager.buildPacket(ChatManager.MESSAGE_RECEIVE, mUsername, messageBytes);
         } catch (Exception e) {
             return;
         }
@@ -204,18 +195,10 @@ public class HostActivity extends Activity {
     private void sendImage(Bitmap bitmap) {
         try {
             ByteArrayOutputStream output = new ByteArrayOutputStream();
-            byte[] senderBytes = mUsername.getBytes();
-
-            output.write(ChatManager.MESSAGE_RECEIVE_IMAGE);
-            output.write(senderBytes.length);
-            output.write(senderBytes.length);
-            output.write(senderBytes);
             bitmap.compress(Bitmap.CompressFormat.JPEG, 15, output);
-
-            byte[] byteArray = output.toByteArray();
-            byteArray[1] = (byte) (byteArray.length - 3);
-
-            mChatManager.write(byteArray);
+            byte[] imageBytes = output.toByteArray();
+            byte[] packet = mChatManager.buildPacket(ChatManager.MESSAGE_RECEIVE_IMAGE, mUsername, imageBytes);
+            mChatManager.write(packet);
         } catch (Exception e) {
             System.err.println("Failed to send image");
             System.err.println(e.toString());
@@ -229,15 +212,19 @@ public class HostActivity extends Activity {
             mAcceptThread.start();
             Toast.makeText(this, "Searching for users...", Toast.LENGTH_SHORT).show();
         } else if (resultCode == RESULT_OK && requestCode == PICK_IMAGE) {
-            Uri image = data.getData();
-            String[] filePathColumn = { MediaStore.Images.Media.DATA };
-            Cursor cursor = getContentResolver().query(image, filePathColumn, null, null, null);
-            cursor.moveToFirst();
-            int columnIndex = cursor.getColumnIndex(filePathColumn[0]);
-            String picturePath = cursor.getString(columnIndex);
-            cursor.close();
-
-            sendImage(BitmapFactory.decodeFile(picturePath));
+            try {
+                Uri image = data.getData();
+                System.out.println(image);
+                String[] filePathColumn = {MediaStore.Images.Media.DATA};
+                Cursor cursor = getContentResolver().query(image, filePathColumn, null, null, null);
+                cursor.moveToFirst();
+                int columnIndex = cursor.getColumnIndex(filePathColumn[0]);
+                String picturePath = cursor.getString(columnIndex);
+                cursor.close();
+                sendImage(BitmapFactory.decodeFile(picturePath));
+            } catch (Exception e) {
+                Toast.makeText(this, "Image is incompatible or not locally stored", Toast.LENGTH_SHORT).show();
+            }
         } else if (requestCode == REQUEST_DISCOVERABLE) {
             Toast.makeText(this, "New users cannot join your chat room", Toast.LENGTH_SHORT).show();
         }
@@ -264,22 +251,17 @@ public class HostActivity extends Activity {
     }
 
     private void manageSocket(BluetoothSocket socket) {
-        Toast.makeText(this, "New user connected", Toast.LENGTH_SHORT).show();
         mChatManager.startConnection(socket);
         mSockets.add(socket);
         byte[] byteArray;
 
         try {
-            ByteArrayOutputStream output = new ByteArrayOutputStream(mChatRoomName.length() + 1);
-            output.write(ChatManager.MESSAGE_NAME);
-            output.write(mChatRoomName.length());
-            output.write(-1);
-            output.write(mChatRoomName.getBytes());
-            byteArray = output.toByteArray();
+            byteArray = mChatManager.buildPacket(ChatManager.MESSAGE_NAME, mUsername, mChatRoomName.getBytes());
         } catch (IOException e) {
             return;
         }
 
+        Toast.makeText(this, "User connected", Toast.LENGTH_SHORT).show();
         mChatManager.writeChatRoomName(byteArray);
     }
 

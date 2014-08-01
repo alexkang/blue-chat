@@ -17,6 +17,7 @@ import android.widget.AbsListView;
 import android.widget.ListView;
 import android.widget.Toast;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -26,13 +27,16 @@ import java.util.Date;
 
 public class ChatManager {
 
-    public static final int MESSAGE_NAME = 3;
-    public static final int MESSAGE_SEND = 4;
-    public static final int MESSAGE_RECEIVE = 5;
-    public static final int MESSAGE_SEND_IMAGE = 6;
-    public static final int MESSAGE_RECEIVE_IMAGE = 7;
+    public static final int BODY_LENGTH_END = 255;
+    public static final int BODY_LENGTH_END_SIGNED = -1;
 
-    SharedPreferences sharedPref;
+    public static final int MESSAGE_NAME = 0;
+    public static final int MESSAGE_SEND = 1;
+    public static final int MESSAGE_RECEIVE = 2;
+    public static final int MESSAGE_SEND_IMAGE = 3;
+    public static final int MESSAGE_RECEIVE_IMAGE = 4;
+
+    private SharedPreferences sharedPref;
 
     private boolean isHost;
     private ArrayList<ConnectedThread> connections;
@@ -55,7 +59,6 @@ public class ChatManager {
             switch (msg.what) {
                 case MESSAGE_NAME:
                     if (!isHost) {
-
                         byte[] nameBuffer = (byte[]) msg.obj;
                         String name = new String(nameBuffer);
 
@@ -71,8 +74,6 @@ public class ChatManager {
                 case MESSAGE_SEND:
                     if (isHost) {
                         byte[] sendBuffer = (byte[]) msg.obj;
-                        sendBuffer[0] = MESSAGE_RECEIVE;
-
                         write(sendBuffer);
                     }
                     break;
@@ -98,8 +99,6 @@ public class ChatManager {
                 case MESSAGE_SEND_IMAGE:
                     if (isHost) {
                         byte[] sendImageBuffer = (byte[]) msg.obj;
-                        sendImageBuffer[0] = MESSAGE_RECEIVE_IMAGE;
-
                         write(sendImageBuffer);
                     }
                     break;
@@ -107,12 +106,16 @@ public class ChatManager {
                     byte[] imageBuffer = (byte[]) msg.obj;
                     int imageSenderLength = msg.arg1;
 
-                    String imageWholeMessage = new String(imageBuffer);
-                    String imageSenderName = imageWholeMessage.substring(0, imageSenderLength);
+                    String imageSenderName = new String(Arrays.copyOfRange(imageBuffer, 0, imageSenderLength));
+
                     Bitmap bitmap = BitmapFactory.decodeByteArray(imageBuffer, imageSenderLength, imageBuffer.length - imageSenderLength);
 
                     MessageBox imageBox = new MessageBox(imageSenderName, bitmap, new Date(), true);
                     addMessage(imageBox);
+
+                    if (!isHost) {
+                        restartConnection();
+                    }
             }
         }
 
@@ -155,7 +158,7 @@ public class ChatManager {
     }
 
     public void restartConnection() {
-        if (!isHost && mSocket != null) {
+        if (!isHost && mSocket != null && !mSocket.isConnected()) {
             try {
                 mSocket.close();
                 mConnectedThread = new ConnectedThread(mSocket);
@@ -169,13 +172,35 @@ public class ChatManager {
         }
     }
 
+    public byte[] buildPacket(int type, String name, byte[] body) throws IOException {
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        output.write(type);
+        output.write(name.length());
+
+        int bodyLength = body.length;
+        do {
+           output.write(bodyLength % 10);
+           bodyLength = bodyLength / 10;
+        } while (bodyLength > 0);
+        output.write(BODY_LENGTH_END);
+        output.write(name.getBytes());
+        output.write(body);
+
+        return output.toByteArray();
+    }
+
     public void write(byte[] byteArray) {
         if (isHost) {
             for (ConnectedThread connection : connections) {
                 connection.write(byteArray);
             }
 
-            mHandler.obtainMessage(byteArray[0], byteArray[2], -1, Arrays.copyOfRange(byteArray, 3, byteArray.length))
+            int currIndex = 2;
+            do {
+                currIndex++;
+            } while (byteArray[currIndex] != BODY_LENGTH_END_SIGNED);
+
+            mHandler.obtainMessage(byteArray[0], byteArray[1], -1, Arrays.copyOfRange(byteArray, currIndex + 1, byteArray.length))
                     .sendToTarget();
         } else {
             mConnectedThread.write(byteArray);
@@ -221,36 +246,59 @@ public class ChatManager {
         public void run() {
             while (true) {
                 try {
-                    // TODO: Handle large data transfers. Bluetooth packets have a 1024 bytes maximum.
-
                     int type = mmInStream.read();
-                    int packetLength = mmInStream.read();
                     int nameLength = mmInStream.read();
+                    int packetLength = 0;
 
-                    if (type == MESSAGE_SEND || type == MESSAGE_SEND_IMAGE) {
-                        // We add 3 bytes to reinsert the type, packet length, and name length.
-                        byte[] buffer = new byte[packetLength + 3];
-                        buffer[0] = (byte) type;
-                        buffer[1] = (byte) packetLength;
-                        buffer[2] = (byte) nameLength;
+                    int currPlace = 1;
+                    int currDigit = mmInStream.read();
+                    do {
+                        packetLength += (currDigit * currPlace);
+                        currPlace *= 10;
+                        currDigit = mmInStream.read();
+                    } while (currDigit != BODY_LENGTH_END);
 
-                        mmInStream.read(buffer, 3, packetLength);
-                        mHandler.obtainMessage(type, -1, -1, buffer)
-                                .sendToTarget();
-                    } else if (type == MESSAGE_RECEIVE || type == MESSAGE_NAME) {
-                        byte[] buffer = new byte[packetLength];
+                    byte[] nameBuffer = new byte[nameLength];
+                    mmInStream.read(nameBuffer);
+                    String name = new String(nameBuffer);
 
-                        mmInStream.read(buffer);
-                        mHandler.obtainMessage(type, nameLength, -1, buffer)
-                                .sendToTarget();
-                    } else if (type == MESSAGE_RECEIVE_IMAGE) {
-                        byte[] buffer = new byte[packetLength];
-
-                        mmInStream.read(buffer);
-                        mHandler.obtainMessage(type, nameLength, -1, buffer)
-                                .sendToTarget();
+                    ByteArrayOutputStream bodyStream = new ByteArrayOutputStream();
+                    for (int i = 0; i < packetLength; i++) {
+                        bodyStream.write(mmInStream.read());
                     }
+                    byte[] body = bodyStream.toByteArray();
+
+                    ByteArrayOutputStream packetStream = new ByteArrayOutputStream();
+                    packetStream.write(nameBuffer);
+                    packetStream.write(body);
+                    byte[] packet = packetStream.toByteArray();
+
+                    switch (type) {
+                        case MESSAGE_NAME:
+                            mHandler.obtainMessage(MESSAGE_NAME, -1, -1, body)
+                                    .sendToTarget();
+                            break;
+                        case MESSAGE_SEND:
+                            byte[] receiveMessagePacket = buildPacket(MESSAGE_RECEIVE, name, body);
+                            mHandler.obtainMessage(MESSAGE_SEND, -1, -1, receiveMessagePacket)
+                                    .sendToTarget();
+                            break;
+                        case MESSAGE_SEND_IMAGE:
+                            byte[] receiveImagePacket = buildPacket(MESSAGE_RECEIVE_IMAGE, name, body);
+                            mHandler.obtainMessage(MESSAGE_SEND, -1, -1, receiveImagePacket)
+                                    .sendToTarget();
+                            break;
+                        case MESSAGE_RECEIVE:
+                            mHandler.obtainMessage(MESSAGE_RECEIVE, nameLength, -1, packet)
+                                    .sendToTarget();
+                            break;
+                        case MESSAGE_RECEIVE_IMAGE:
+                            mHandler.obtainMessage(MESSAGE_RECEIVE_IMAGE, nameLength, -1, packet)
+                                    .sendToTarget();
+                        }
                 } catch (IOException e) {
+                    System.err.println("Error in receiving packets");
+                    System.err.println(e.toString());
                     break;
                 }
             }
@@ -259,9 +307,12 @@ public class ChatManager {
         public void write(byte[] byteArray) {
             try {
                 mmOutStream.write(byteArray);
-                mmOutStream.flush();
             } catch (IOException e) {
-                System.err.println("Failed to write bytes");
+                String byteArrayString = "";
+                for (byte b : byteArray) {
+                    byteArrayString += b + ", ";
+                }
+                System.err.println("Failed to write bytes: " + byteArrayString);
                 System.err.println(e.toString());
             }
         }

@@ -30,7 +30,8 @@ import java.util.ArrayList;
 
 public class ClientActivity extends Activity {
 
-    public static final int PICK_IMAGE = 2;
+    public static final int REQUEST_ENABLE_BT = 0;
+    public static final int PICK_IMAGE = 1;
 
     private ArrayList<Integer> acceptableDevices = new ArrayList<Integer>();
 
@@ -113,16 +114,7 @@ public class ClientActivity extends Activity {
 
         try {
             byte[] messageBytes = mMessage.getText().toString().getBytes();
-            byte[] senderBytes = mUsername.getBytes();
-
-            ByteArrayOutputStream output = new ByteArrayOutputStream(senderBytes.length + messageBytes.length + 3);
-            output.write(ChatManager.MESSAGE_SEND);
-            output.write(senderBytes.length + messageBytes.length);
-            output.write(senderBytes.length);
-            output.write(senderBytes);
-            output.write(messageBytes);
-
-            byteArray = output.toByteArray();
+            byteArray = mChatManager.buildPacket(ChatManager.MESSAGE_SEND, mUsername, messageBytes);
         } catch (Exception e) {
             return;
         }
@@ -134,25 +126,18 @@ public class ClientActivity extends Activity {
     private void uploadAttachment() {
         Intent i = new Intent();
         i.setType("image/*");
-        i.setAction(Intent.ACTION_GET_CONTENT);
+        i.setAction(Intent.ACTION_PICK);
         startActivityForResult(Intent.createChooser(i, "Select Picture"), PICK_IMAGE);
     }
 
     private void sendImage(Bitmap bitmap) {
         try {
             ByteArrayOutputStream output = new ByteArrayOutputStream();
-            byte[] senderBytes = mUsername.getBytes();
-
-            output.write(ChatManager.MESSAGE_SEND_IMAGE);
-            output.write(senderBytes.length);
-            output.write(senderBytes.length);
-            output.write(senderBytes);
             bitmap.compress(Bitmap.CompressFormat.JPEG, 15, output);
+            byte[] imageBytes = output.toByteArray();
 
-            byte[] byteArray = output.toByteArray();
-            byteArray[1] = (byte) (byteArray.length - 3);
-
-            mChatManager.write(byteArray);
+            byte[] packet = mChatManager.buildPacket(ChatManager.MESSAGE_SEND_IMAGE, mUsername, imageBytes);
+            mChatManager.write(packet);
         } catch (Exception e) {
             System.err.println("Failed to send image");
             System.err.println(e.toString());
@@ -161,20 +146,23 @@ public class ClientActivity extends Activity {
 
     @Override
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
-        if (resultCode == RESULT_OK && requestCode == MainActivity.REQUEST_ENABLE_BT) {
+        if (resultCode == RESULT_OK && requestCode == REQUEST_ENABLE_BT) {
             Toast.makeText(this, "Bluetooth successfully enabled!", Toast.LENGTH_SHORT).show();
             startDeviceSearch();
         } else if (resultCode == RESULT_OK && requestCode == PICK_IMAGE) {
-            Uri image = data.getData();
-            String[] filePathColumn = { MediaStore.Images.Media.DATA };
-            Cursor cursor = getContentResolver().query(image, filePathColumn, null, null, null);
-            cursor.moveToFirst();
-            int columnIndex = cursor.getColumnIndex(filePathColumn[0]);
-            String picturePath = cursor.getString(columnIndex);
-            cursor.close();
-
-            sendImage(BitmapFactory.decodeFile(picturePath));
-        } else if (requestCode == MainActivity.REQUEST_ENABLE_BT) {
+            try {
+                Uri image = data.getData();
+                String[] filePathColumn = {MediaStore.Images.Media.DATA};
+                Cursor cursor = getContentResolver().query(image, filePathColumn, null, null, null);
+                cursor.moveToFirst();
+                int columnIndex = cursor.getColumnIndex(filePathColumn[0]);
+                String picturePath = cursor.getString(columnIndex);
+                cursor.close();
+                sendImage(BitmapFactory.decodeFile(picturePath));
+            } catch (Exception e) {
+                Toast.makeText(this, "Image is incompatible or not locally stored", Toast.LENGTH_SHORT).show();
+            }
+        } else if (requestCode == REQUEST_ENABLE_BT) {
             Toast.makeText(this, "Bluetooth not enabled", Toast.LENGTH_SHORT).show();
             finish();
         }
@@ -200,7 +188,7 @@ public class ClientActivity extends Activity {
 
         if (!mBluetoothAdapter.isEnabled()) {
             Intent i = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
-            startActivityForResult(i, MainActivity.REQUEST_ENABLE_BT);
+            startActivityForResult(i, REQUEST_ENABLE_BT);
         } else {
             mChatManager.restartConnection();
         }
@@ -229,7 +217,6 @@ public class ClientActivity extends Activity {
     }
 
     private void manageSocket(BluetoothSocket socket) {
-        System.out.println("Socket managed");
         mSocket = socket;
         mChatManager.startConnection(socket, mProgressDialog);
     }
