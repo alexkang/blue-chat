@@ -70,6 +70,7 @@ public class ChatManager {
                         mProgressDialog.dismiss();
                         Toast.makeText(mActivity, "Connected to " + name, Toast.LENGTH_SHORT).show();
                     }
+
                     break;
                 case MESSAGE_SEND:
                     if (isHost) {
@@ -99,17 +100,15 @@ public class ChatManager {
                 case MESSAGE_SEND_IMAGE:
                     if (isHost) {
                         byte[] sendImageBuffer = (byte[]) msg.obj;
-                        write(sendImageBuffer);
+                        writeImage(sendImageBuffer, msg.arg1);
                     }
+
                     break;
                 case MESSAGE_RECEIVE_IMAGE:
                     byte[] imageBuffer = (byte[]) msg.obj;
                     int imageSenderLength = msg.arg1;
-
                     String imageSenderName = new String(Arrays.copyOfRange(imageBuffer, 0, imageSenderLength));
-
                     Bitmap bitmap = BitmapFactory.decodeByteArray(imageBuffer, imageSenderLength, imageBuffer.length - imageSenderLength);
-
                     MessageBox imageBox = new MessageBox(imageSenderName, bitmap, new Date(), true);
                     addMessage(imageBox);
             }
@@ -203,6 +202,26 @@ public class ChatManager {
         }
     }
 
+    public void writeImage(byte[] byteArray, int senderIndex) {
+        if (isHost) {
+            for (int i = 0; i < connections.size(); i++) {
+                if (i != senderIndex) {
+                    connections.get(i).write(byteArray);
+                }
+            }
+        } else {
+            mConnectedThread.write(byteArray);
+        }
+
+        int currIndex = 2;
+        do {
+            currIndex++;
+        } while (byteArray[currIndex] != BODY_LENGTH_END_SIGNED);
+
+        mHandler.obtainMessage(MESSAGE_RECEIVE_IMAGE, byteArray[1], -1, Arrays.copyOfRange(byteArray, currIndex + 1, byteArray.length))
+                .sendToTarget();
+    }
+
     public void writeChatRoomName(byte[] byteArray) {
         for (ConnectedThread connection : connections) {
             connection.write(byteArray);
@@ -281,7 +300,8 @@ public class ChatManager {
                             break;
                         case MESSAGE_SEND_IMAGE:
                             byte[] receiveImagePacket = buildPacket(MESSAGE_RECEIVE_IMAGE, name, body);
-                            mHandler.obtainMessage(MESSAGE_SEND, -1, -1, receiveImagePacket)
+                            int sender = connections.indexOf(this);
+                            mHandler.obtainMessage(MESSAGE_SEND_IMAGE, sender, -1, receiveImagePacket)
                                     .sendToTarget();
                             break;
                         case MESSAGE_RECEIVE:

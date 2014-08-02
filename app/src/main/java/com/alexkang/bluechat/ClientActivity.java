@@ -221,7 +221,7 @@ public class ClientActivity extends Activity {
                 bitmap.compress(Bitmap.CompressFormat.JPEG, 15, output);
                 byte[] imageBytes = output.toByteArray();
                 byte[] packet = mChatManager.buildPacket(ChatManager.MESSAGE_SEND_IMAGE, mUsername, imageBytes);
-                mChatManager.write(packet);
+                mChatManager.writeImage(packet, -1);
             } catch (Exception e) {
                 System.err.println("Failed to send image");
                 System.err.println(e.toString());
