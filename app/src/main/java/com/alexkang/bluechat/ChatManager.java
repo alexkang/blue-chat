@@ -112,10 +112,6 @@ public class ChatManager {
 
                     MessageBox imageBox = new MessageBox(imageSenderName, bitmap, new Date(), true);
                     addMessage(imageBox);
-
-                    if (!isHost) {
-                        restartConnection();
-                    }
             }
         }
 
@@ -158,7 +154,7 @@ public class ChatManager {
     }
 
     public void restartConnection() {
-        if (!isHost && mSocket != null && !mSocket.isConnected()) {
+        if (!isHost && mSocket != null) {
             try {
                 mSocket.close();
                 mConnectedThread = new ConnectedThread(mSocket);
@@ -298,7 +294,7 @@ public class ChatManager {
                         }
                 } catch (IOException e) {
                     System.err.println("Error in receiving packets");
-                    System.err.println(e.toString());
+                    e.printStackTrace();
                     break;
                 }
             }
@@ -307,6 +303,7 @@ public class ChatManager {
         public void write(byte[] byteArray) {
             try {
                 mmOutStream.write(byteArray);
+                mmOutStream.flush();
             } catch (IOException e) {
                 String byteArrayString = "";
                 for (byte b : byteArray) {

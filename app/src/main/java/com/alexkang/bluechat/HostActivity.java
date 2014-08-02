@@ -192,19 +192,6 @@ public class HostActivity extends Activity {
         mMessage.setText("");
     }
 
-    private void sendImage(Bitmap bitmap) {
-        try {
-            ByteArrayOutputStream output = new ByteArrayOutputStream();
-            bitmap.compress(Bitmap.CompressFormat.JPEG, 15, output);
-            byte[] imageBytes = output.toByteArray();
-            byte[] packet = mChatManager.buildPacket(ChatManager.MESSAGE_RECEIVE_IMAGE, mUsername, imageBytes);
-            mChatManager.write(packet);
-        } catch (Exception e) {
-            System.err.println("Failed to send image");
-            System.err.println(e.toString());
-        }
-    }
-
     @Override
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
         if (resultCode != RESULT_CANCELED && requestCode == REQUEST_DISCOVERABLE) {
@@ -214,14 +201,15 @@ public class HostActivity extends Activity {
         } else if (resultCode == RESULT_OK && requestCode == PICK_IMAGE) {
             try {
                 Uri image = data.getData();
-                System.out.println(image);
                 String[] filePathColumn = {MediaStore.Images.Media.DATA};
                 Cursor cursor = getContentResolver().query(image, filePathColumn, null, null, null);
+
                 cursor.moveToFirst();
                 int columnIndex = cursor.getColumnIndex(filePathColumn[0]);
                 String picturePath = cursor.getString(columnIndex);
+
+                new SendImageThread(picturePath).start();
                 cursor.close();
-                sendImage(BitmapFactory.decodeFile(picturePath));
             } catch (Exception e) {
                 Toast.makeText(this, "Image is incompatible or not locally stored", Toast.LENGTH_SHORT).show();
             }
@@ -263,6 +251,29 @@ public class HostActivity extends Activity {
 
         Toast.makeText(this, "User connected", Toast.LENGTH_SHORT).show();
         mChatManager.writeChatRoomName(byteArray);
+    }
+
+    private class SendImageThread extends Thread {
+
+        private Bitmap bitmap;
+
+        public SendImageThread(String picturePath) {
+            this.bitmap = BitmapFactory.decodeFile(picturePath);
+        }
+
+        public void run() {
+            try {
+                ByteArrayOutputStream output = new ByteArrayOutputStream();
+                bitmap.compress(Bitmap.CompressFormat.JPEG, 15, output);
+                byte[] imageBytes = output.toByteArray();
+                byte[] packet = mChatManager.buildPacket(ChatManager.MESSAGE_RECEIVE_IMAGE, mUsername, imageBytes);
+                mChatManager.write(packet);
+            } catch (Exception e) {
+                System.err.println("Failed to send image");
+                System.err.println(e.toString());
+            }
+        }
+
     }
 
     private class AcceptThread extends Thread {

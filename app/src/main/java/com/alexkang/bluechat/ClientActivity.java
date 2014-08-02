@@ -130,20 +130,6 @@ public class ClientActivity extends Activity {
         startActivityForResult(Intent.createChooser(i, "Select Picture"), PICK_IMAGE);
     }
 
-    private void sendImage(Bitmap bitmap) {
-        try {
-            ByteArrayOutputStream output = new ByteArrayOutputStream();
-            bitmap.compress(Bitmap.CompressFormat.JPEG, 15, output);
-            byte[] imageBytes = output.toByteArray();
-
-            byte[] packet = mChatManager.buildPacket(ChatManager.MESSAGE_SEND_IMAGE, mUsername, imageBytes);
-            mChatManager.write(packet);
-        } catch (Exception e) {
-            System.err.println("Failed to send image");
-            System.err.println(e.toString());
-        }
-    }
-
     @Override
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
         if (resultCode == RESULT_OK && requestCode == REQUEST_ENABLE_BT) {
@@ -154,11 +140,13 @@ public class ClientActivity extends Activity {
                 Uri image = data.getData();
                 String[] filePathColumn = {MediaStore.Images.Media.DATA};
                 Cursor cursor = getContentResolver().query(image, filePathColumn, null, null, null);
+
                 cursor.moveToFirst();
                 int columnIndex = cursor.getColumnIndex(filePathColumn[0]);
                 String picturePath = cursor.getString(columnIndex);
+
+                new SendImageThread(picturePath).start();
                 cursor.close();
-                sendImage(BitmapFactory.decodeFile(picturePath));
             } catch (Exception e) {
                 Toast.makeText(this, "Image is incompatible or not locally stored", Toast.LENGTH_SHORT).show();
             }
@@ -189,8 +177,6 @@ public class ClientActivity extends Activity {
         if (!mBluetoothAdapter.isEnabled()) {
             Intent i = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
             startActivityForResult(i, REQUEST_ENABLE_BT);
-        } else {
-            mChatManager.restartConnection();
         }
     }
 
@@ -219,6 +205,29 @@ public class ClientActivity extends Activity {
     private void manageSocket(BluetoothSocket socket) {
         mSocket = socket;
         mChatManager.startConnection(socket, mProgressDialog);
+    }
+
+    private class SendImageThread extends Thread {
+
+        private Bitmap bitmap;
+
+        public SendImageThread(String picturePath) {
+            this.bitmap = BitmapFactory.decodeFile(picturePath);
+        }
+
+        public void run() {
+            try {
+                ByteArrayOutputStream output = new ByteArrayOutputStream();
+                bitmap.compress(Bitmap.CompressFormat.JPEG, 15, output);
+                byte[] imageBytes = output.toByteArray();
+                byte[] packet = mChatManager.buildPacket(ChatManager.MESSAGE_SEND_IMAGE, mUsername, imageBytes);
+                mChatManager.write(packet);
+            } catch (Exception e) {
+                System.err.println("Failed to send image");
+                System.err.println(e.toString());
+            }
+        }
+
     }
 
     private class ConnectThread extends Thread {
