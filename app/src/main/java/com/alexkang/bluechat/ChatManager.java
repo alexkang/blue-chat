@@ -219,6 +219,10 @@ public class ChatManager {
         }
     }
 
+    public void writeMessage(byte[] byteArray) {
+        writeMessage(byteArray, -1);
+    }
+
     private void addMessage(MessageBox message) {
         mMessageList.add(message);
         mMessageFeed.invalidateViews();

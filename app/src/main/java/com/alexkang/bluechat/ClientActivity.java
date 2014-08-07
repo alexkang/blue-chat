@@ -19,6 +19,7 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.provider.MediaStore;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
@@ -42,6 +43,7 @@ public class ClientActivity extends Activity {
     private BluetoothSocket mSocket;
 
     private ChatManager mChatManager;
+    private boolean shouldRestart = true;
 
     private final BroadcastReceiver mReceiver = new BroadcastReceiver() {
         @Override
@@ -63,6 +65,9 @@ public class ClientActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_chatroom);
+        if (getActionBar() != null) {
+            getActionBar().setDisplayHomeAsUpEnabled(true);
+        }
 
         acceptableDevices.add(BluetoothClass.Device.COMPUTER_HANDHELD_PC_PDA);
         acceptableDevices.add(BluetoothClass.Device.COMPUTER_PALM_SIZE_PC_PDA);
@@ -98,6 +103,17 @@ public class ClientActivity extends Activity {
         mProgressDialog.show();
     }
 
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        int id = item.getItemId();
+        if (id == android.R.id.home) {
+            Intent i = new Intent(this, MainActivity.class);
+            startActivity(i);
+            finish();
+        }
+        return super.onOptionsItemSelected(item);
+    }
+
     private void startDeviceSearch() {
         mBluetoothAdapter.enable();
         IntentFilter filter = new IntentFilter(BluetoothDevice.ACTION_FOUND);
@@ -120,11 +136,13 @@ public class ClientActivity extends Activity {
             return;
         }
 
-        mChatManager.writeMessage(byteArray, -1);
+        mChatManager.writeMessage(byteArray);
         mMessage.setText("");
     }
 
     private void uploadAttachment() {
+        shouldRestart = false;
+
         Intent i = new Intent();
         i.setType("image/*");
         i.setAction(Intent.ACTION_PICK);
@@ -133,20 +151,22 @@ public class ClientActivity extends Activity {
 
     @Override
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
-        if (resultCode == RESULT_OK && requestCode == PICK_IMAGE) {
-            try {
-                Uri image = data.getData();
-                String[] filePathColumn = {MediaStore.Images.Media.DATA};
-                Cursor cursor = getContentResolver().query(image, filePathColumn, null, null, null);
+        if (requestCode == PICK_IMAGE) {
+            if (resultCode == RESULT_OK) {
+                try {
+                    Uri image = data.getData();
+                    String[] filePathColumn = {MediaStore.Images.Media.DATA};
+                    Cursor cursor = getContentResolver().query(image, filePathColumn, null, null, null);
 
-                cursor.moveToFirst();
-                int columnIndex = cursor.getColumnIndex(filePathColumn[0]);
-                String picturePath = cursor.getString(columnIndex);
+                    cursor.moveToFirst();
+                    int columnIndex = cursor.getColumnIndex(filePathColumn[0]);
+                    String picturePath = cursor.getString(columnIndex);
 
-                new SendImageThread(picturePath).start();
-                cursor.close();
-            } catch (Exception e) {
-                Toast.makeText(this, "Image is incompatible or not locally stored", Toast.LENGTH_SHORT).show();
+                    new SendImageThread(picturePath).start();
+                    cursor.close();
+                } catch (Exception e) {
+                    Toast.makeText(this, "Image is incompatible or not locally stored", Toast.LENGTH_SHORT).show();
+                }
             }
         }
     }
@@ -161,6 +181,17 @@ public class ClientActivity extends Activity {
         mUsername = sharedPref.getString("username", mBluetoothAdapter.getName());
 
         startDeviceSearch();
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+
+        if (shouldRestart) {
+            mChatManager.restartConnection();
+        } else {
+            shouldRestart = true;
+        }
     }
 
     @Override
@@ -217,7 +248,7 @@ public class ClientActivity extends Activity {
                 bitmap.compress(Bitmap.CompressFormat.JPEG, 15, output);
                 byte[] imageBytes = output.toByteArray();
                 byte[] packet = ChatManager.buildPacket(ChatManager.MESSAGE_SEND_IMAGE, mUsername, imageBytes);
-                mChatManager.writeMessage(packet, -1);
+                mChatManager.writeMessage(packet);
             } catch (Exception e) {
                 System.err.println("Failed to send image");
                 System.err.println(e.toString());

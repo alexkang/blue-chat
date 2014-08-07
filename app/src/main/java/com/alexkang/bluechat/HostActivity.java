@@ -50,6 +50,9 @@ public class HostActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_chatroom);
+        if (getActionBar() != null) {
+            getActionBar().setDisplayHomeAsUpEnabled(true);
+        }
 
         Button mAttachButton = (Button) findViewById(R.id.attach);
         Button mSendButton = (Button) findViewById(R.id.send);
@@ -82,7 +85,11 @@ public class HostActivity extends Activity {
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         int id = item.getItemId();
-        if (id == R.id.action_reopen) {
+        if (id == android.R.id.home) {
+            Intent i = new Intent(this, MainActivity.class);
+            startActivity(i);
+            finish();
+        } else if (id == R.id.action_reopen) {
             if (mAcceptThread != null) {
                 mAcceptThread.cancel();
             }
@@ -188,7 +195,7 @@ public class HostActivity extends Activity {
             return;
         }
 
-        mChatManager.writeMessage(byteArray, -1);
+        mChatManager.writeMessage(byteArray);
         mMessage.setText("");
     }
 
@@ -263,7 +270,7 @@ public class HostActivity extends Activity {
                 bitmap.compress(Bitmap.CompressFormat.JPEG, 15, output);
                 byte[] imageBytes = output.toByteArray();
                 byte[] packet = ChatManager.buildPacket(ChatManager.MESSAGE_SEND_IMAGE, mUsername, imageBytes);
-                mChatManager.writeMessage(packet, -1);
+                mChatManager.writeMessage(packet);
             } catch (Exception e) {
                 System.err.println("Failed to send image");
                 System.err.println(e.toString());
