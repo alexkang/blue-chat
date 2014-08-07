@@ -30,11 +30,11 @@ public class ChatManager {
     public static final int BODY_LENGTH_END = 255;
     public static final int BODY_LENGTH_END_SIGNED = -1;
 
-    public static final int MESSAGE_NAME = 0;
-    public static final int MESSAGE_SEND = 1;
-    public static final int MESSAGE_RECEIVE = 2;
-    public static final int MESSAGE_SEND_IMAGE = 3;
-    public static final int MESSAGE_RECEIVE_IMAGE = 4;
+    public static final int MESSAGE_NAME = 1;
+    public static final int MESSAGE_SEND = 2;
+    public static final int MESSAGE_RECEIVE = 3;
+    public static final int MESSAGE_SEND_IMAGE = 4;
+    public static final int MESSAGE_RECEIVE_IMAGE = 5;
 
     private SharedPreferences sharedPref;
 
@@ -43,73 +43,61 @@ public class ChatManager {
 
     private ArrayList<MessageBox> mMessageList;
     private MessageFeedAdapter mFeedAdapter;
+    private ListView mMessageFeed;
 
     private Activity mActivity;
-    private ListView mMessageFeed;
+    private ProgressDialog mProgressDialog;
 
     private BluetoothSocket mSocket;
     private ConnectedThread mConnectedThread;
-
-    private ProgressDialog mProgressDialog;
 
     private final Handler mHandler = new Handler() {
 
         @Override
         public void handleMessage(Message msg) {
+            byte[] packet = (byte[]) msg.obj;
+            int senderLength = msg.arg1;
+            int senderIndex = msg.arg2;
+
+            String sender = new String(Arrays.copyOfRange(packet, 0, senderLength));
+            byte[] body = Arrays.copyOfRange(packet, senderLength, packet.length);
+
+            String username = sharedPref.getString("username", BluetoothAdapter.getDefaultAdapter().getName());
+            boolean isSelf = username.equals(sender);
+
             switch (msg.what) {
                 case MESSAGE_NAME:
                     if (!isHost) {
-                        byte[] nameBuffer = (byte[]) msg.obj;
-                        String name = new String(nameBuffer);
+                        String chatRoomName = new String(body);
 
                         if (mActivity.getActionBar() != null) {
-                            mActivity.getActionBar().setTitle(name);
+                            mActivity.getActionBar().setTitle(chatRoomName);
                         }
 
                         BluetoothAdapter.getDefaultAdapter().cancelDiscovery();
                         mProgressDialog.dismiss();
-                        Toast.makeText(mActivity, "Connected to " + name, Toast.LENGTH_SHORT).show();
+                        Toast.makeText(mActivity, "Connected to " + chatRoomName, Toast.LENGTH_SHORT).show();
                     }
-
                     break;
                 case MESSAGE_SEND:
                     if (isHost) {
-                        byte[] sendBuffer = (byte[]) msg.obj;
-                        write(sendBuffer);
+                        byte[] sendPacket = buildPacket(MESSAGE_SEND, sender, body);
+                        writeMessage(sendPacket, senderIndex);
                     }
                     break;
                 case MESSAGE_RECEIVE:
-                    byte[] receiveBuffer = (byte[]) msg.obj;
-                    int nameLength = msg.arg1;
-                    String wholeMessage = new String(receiveBuffer);
-                    String name = wholeMessage.substring(0, nameLength);
-                    String receiveMessage;
-
-                    if (nameLength == 0) {
-                        receiveMessage = wholeMessage;
-                    } else {
-                        receiveMessage = wholeMessage.substring(nameLength);
-                    }
-
-                    String username = sharedPref.getString("username", BluetoothAdapter.getDefaultAdapter().getName());
-                    boolean isSelf = username.equals(name);
-                    MessageBox messageBox = new MessageBox(name, receiveMessage, new Date(), isSelf);
+                    MessageBox messageBox = new MessageBox(sender, new String(body), new Date(), isSelf);
                     addMessage(messageBox);
-
                     break;
                 case MESSAGE_SEND_IMAGE:
                     if (isHost) {
-                        byte[] sendImageBuffer = (byte[]) msg.obj;
-                        writeImage(sendImageBuffer, msg.arg1);
+                        byte[] sendImagePacket = buildPacket(MESSAGE_SEND_IMAGE, sender, body);
+                        writeMessage(sendImagePacket, senderIndex);
                     }
-
                     break;
                 case MESSAGE_RECEIVE_IMAGE:
-                    byte[] imageBuffer = (byte[]) msg.obj;
-                    int imageSenderLength = msg.arg1;
-                    String imageSenderName = new String(Arrays.copyOfRange(imageBuffer, 0, imageSenderLength));
-                    Bitmap bitmap = BitmapFactory.decodeByteArray(imageBuffer, imageSenderLength, imageBuffer.length - imageSenderLength);
-                    MessageBox imageBox = new MessageBox(imageSenderName, bitmap, new Date(), true);
+                    Bitmap bitmap = BitmapFactory.decodeByteArray(body, 0, body.length);
+                    MessageBox imageBox = new MessageBox(sender, bitmap, new Date(), isSelf);
                     addMessage(imageBox);
             }
         }
@@ -167,7 +155,7 @@ public class ChatManager {
         }
     }
 
-    public byte[] buildPacket(int type, String name, byte[] body) throws IOException {
+    public static byte[] buildPacket(int type, String name, byte[] body) {
         ByteArrayOutputStream output = new ByteArrayOutputStream();
         output.write(type);
         output.write(name.length());
@@ -177,33 +165,50 @@ public class ChatManager {
            output.write(bodyLength % 10);
            bodyLength = bodyLength / 10;
         } while (bodyLength > 0);
-        output.write(BODY_LENGTH_END);
-        output.write(name.getBytes());
-        output.write(body);
+
+        try {
+            output.write(BODY_LENGTH_END);
+            output.write(name.getBytes());
+            output.write(body);
+        } catch (IOException e) {
+            System.err.println("Error in building packet.");
+            return null;
+        }
 
         return output.toByteArray();
     }
 
-    public void write(byte[] byteArray) {
+    public void writeChatRoomName(byte[] byteArray) {
         if (isHost) {
             for (ConnectedThread connection : connections) {
                 connection.write(byteArray);
             }
-
-            int currIndex = 2;
-            do {
-                currIndex++;
-            } while (byteArray[currIndex] != BODY_LENGTH_END_SIGNED);
-
-            mHandler.obtainMessage(byteArray[0], byteArray[1], -1, Arrays.copyOfRange(byteArray, currIndex + 1, byteArray.length))
-                    .sendToTarget();
-        } else {
-            mConnectedThread.write(byteArray);
         }
     }
 
-    public void writeImage(byte[] byteArray, int senderIndex) {
+    public void writeMessage(byte[] byteArray, int senderIndex) {
+        // senderIndex of -1 indicates that the sender called this function themselves.
+
+        int type = byteArray[0];
+        int receiveType = 0;
+        if (type == MESSAGE_SEND) {
+            receiveType = MESSAGE_RECEIVE;
+        } else if (type == MESSAGE_SEND_IMAGE) {
+            receiveType = MESSAGE_RECEIVE_IMAGE;
+        }
+
+        int senderLength = byteArray[1];
+
+        int currIndex = 2;
+        do {
+            currIndex++;
+        } while (byteArray[currIndex] != BODY_LENGTH_END_SIGNED);
+
+        mHandler.obtainMessage(receiveType, senderLength, senderIndex, Arrays.copyOfRange(byteArray, currIndex + 1, byteArray.length))
+                .sendToTarget();
+
         if (isHost) {
+            byteArray[0] = (byte) receiveType;
             for (int i = 0; i < connections.size(); i++) {
                 if (i != senderIndex) {
                     connections.get(i).write(byteArray);
@@ -211,20 +216,6 @@ public class ChatManager {
             }
         } else {
             mConnectedThread.write(byteArray);
-        }
-
-        int currIndex = 2;
-        do {
-            currIndex++;
-        } while (byteArray[currIndex] != BODY_LENGTH_END_SIGNED);
-
-        mHandler.obtainMessage(MESSAGE_RECEIVE_IMAGE, byteArray[1], -1, Arrays.copyOfRange(byteArray, currIndex + 1, byteArray.length))
-                .sendToTarget();
-    }
-
-    public void writeChatRoomName(byte[] byteArray) {
-        for (ConnectedThread connection : connections) {
-            connection.write(byteArray);
         }
     }
 
@@ -262,56 +253,36 @@ public class ChatManager {
             while (true) {
                 try {
                     int type = mmInStream.read();
-                    int nameLength = mmInStream.read();
-                    int packetLength = 0;
+                    int senderLength = mmInStream.read();
+                    int senderIndex = -1;
 
+                    if (isHost) {
+                        senderIndex = connections.indexOf(this);
+                    }
+
+                    /*
+                     * Calculate the length of the body in bytes. Each byte read is a digit
+                     * in the body length in order of least to most significant digit.
+                     *
+                     * i.e. Body length of 247 would be read in the form {7, 4, 2}.
+                     */
+                    int bodyLength = 0;
                     int currPlace = 1;
                     int currDigit = mmInStream.read();
                     do {
-                        packetLength += (currDigit * currPlace);
+                        bodyLength += (currDigit * currPlace);
                         currPlace *= 10;
                         currDigit = mmInStream.read();
                     } while (currDigit != BODY_LENGTH_END);
 
-                    byte[] nameBuffer = new byte[nameLength];
-                    mmInStream.read(nameBuffer);
-                    String name = new String(nameBuffer);
-
-                    ByteArrayOutputStream bodyStream = new ByteArrayOutputStream();
-                    for (int i = 0; i < packetLength; i++) {
-                        bodyStream.write(mmInStream.read());
-                    }
-                    byte[] body = bodyStream.toByteArray();
-
                     ByteArrayOutputStream packetStream = new ByteArrayOutputStream();
-                    packetStream.write(nameBuffer);
-                    packetStream.write(body);
+                    for (int i = 0; i < senderLength + bodyLength; i++) {
+                        packetStream.write(mmInStream.read());
+                    }
                     byte[] packet = packetStream.toByteArray();
 
-                    switch (type) {
-                        case MESSAGE_NAME:
-                            mHandler.obtainMessage(MESSAGE_NAME, -1, -1, body)
-                                    .sendToTarget();
-                            break;
-                        case MESSAGE_SEND:
-                            byte[] receiveMessagePacket = buildPacket(MESSAGE_RECEIVE, name, body);
-                            mHandler.obtainMessage(MESSAGE_SEND, -1, -1, receiveMessagePacket)
-                                    .sendToTarget();
-                            break;
-                        case MESSAGE_SEND_IMAGE:
-                            byte[] receiveImagePacket = buildPacket(MESSAGE_RECEIVE_IMAGE, name, body);
-                            int sender = connections.indexOf(this);
-                            mHandler.obtainMessage(MESSAGE_SEND_IMAGE, sender, -1, receiveImagePacket)
-                                    .sendToTarget();
-                            break;
-                        case MESSAGE_RECEIVE:
-                            mHandler.obtainMessage(MESSAGE_RECEIVE, nameLength, -1, packet)
-                                    .sendToTarget();
-                            break;
-                        case MESSAGE_RECEIVE_IMAGE:
-                            mHandler.obtainMessage(MESSAGE_RECEIVE_IMAGE, nameLength, -1, packet)
-                                    .sendToTarget();
-                        }
+                    mHandler.obtainMessage(type, senderLength, senderIndex, packet)
+                            .sendToTarget();
                 } catch (IOException e) {
                     System.err.println("Error in receiving packets");
                     e.printStackTrace();

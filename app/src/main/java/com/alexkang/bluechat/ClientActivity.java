@@ -30,7 +30,6 @@ import java.util.ArrayList;
 
 public class ClientActivity extends Activity {
 
-    public static final int REQUEST_ENABLE_BT = 0;
     public static final int PICK_IMAGE = 1;
 
     private ArrayList<Integer> acceptableDevices = new ArrayList<Integer>();
@@ -100,9 +99,11 @@ public class ClientActivity extends Activity {
     }
 
     private void startDeviceSearch() {
+        mBluetoothAdapter.enable();
         IntentFilter filter = new IntentFilter(BluetoothDevice.ACTION_FOUND);
         registerReceiver(mReceiver, filter);
-        mBluetoothAdapter.startDiscovery();
+
+        new WaitForBluetoothThread().start();
     }
 
     private void sendMessage() {
@@ -114,12 +115,12 @@ public class ClientActivity extends Activity {
 
         try {
             byte[] messageBytes = mMessage.getText().toString().getBytes();
-            byteArray = mChatManager.buildPacket(ChatManager.MESSAGE_SEND, mUsername, messageBytes);
+            byteArray = ChatManager.buildPacket(ChatManager.MESSAGE_SEND, mUsername, messageBytes);
         } catch (Exception e) {
             return;
         }
 
-        mChatManager.write(byteArray);
+        mChatManager.writeMessage(byteArray, -1);
         mMessage.setText("");
     }
 
@@ -132,10 +133,7 @@ public class ClientActivity extends Activity {
 
     @Override
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
-        if (resultCode == RESULT_OK && requestCode == REQUEST_ENABLE_BT) {
-            Toast.makeText(this, "Bluetooth successfully enabled!", Toast.LENGTH_SHORT).show();
-            startDeviceSearch();
-        } else if (resultCode == RESULT_OK && requestCode == PICK_IMAGE) {
+        if (resultCode == RESULT_OK && requestCode == PICK_IMAGE) {
             try {
                 Uri image = data.getData();
                 String[] filePathColumn = {MediaStore.Images.Media.DATA};
@@ -150,9 +148,6 @@ public class ClientActivity extends Activity {
             } catch (Exception e) {
                 Toast.makeText(this, "Image is incompatible or not locally stored", Toast.LENGTH_SHORT).show();
             }
-        } else if (requestCode == REQUEST_ENABLE_BT) {
-            Toast.makeText(this, "Bluetooth not enabled", Toast.LENGTH_SHORT).show();
-            finish();
         }
     }
 
@@ -165,19 +160,7 @@ public class ClientActivity extends Activity {
         SharedPreferences sharedPref = PreferenceManager.getDefaultSharedPreferences(this);
         mUsername = sharedPref.getString("username", mBluetoothAdapter.getName());
 
-        if (mBluetoothAdapter.isEnabled()) {
-            startDeviceSearch();
-        }
-    }
-
-    @Override
-    public void onResume() {
-        super.onResume();
-
-        if (!mBluetoothAdapter.isEnabled()) {
-            Intent i = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
-            startActivityForResult(i, REQUEST_ENABLE_BT);
-        }
+        startDeviceSearch();
     }
 
     @Override
@@ -207,6 +190,19 @@ public class ClientActivity extends Activity {
         mChatManager.startConnection(socket, mProgressDialog);
     }
 
+    private class WaitForBluetoothThread extends Thread {
+
+        public void run() {
+            while (true) {
+                if (mBluetoothAdapter.isEnabled()) {
+                    mBluetoothAdapter.startDiscovery();
+                    break;
+                }
+            }
+        }
+
+    }
+
     private class SendImageThread extends Thread {
 
         private Bitmap bitmap;
@@ -220,8 +216,8 @@ public class ClientActivity extends Activity {
                 ByteArrayOutputStream output = new ByteArrayOutputStream();
                 bitmap.compress(Bitmap.CompressFormat.JPEG, 15, output);
                 byte[] imageBytes = output.toByteArray();
-                byte[] packet = mChatManager.buildPacket(ChatManager.MESSAGE_SEND_IMAGE, mUsername, imageBytes);
-                mChatManager.writeImage(packet, -1);
+                byte[] packet = ChatManager.buildPacket(ChatManager.MESSAGE_SEND_IMAGE, mUsername, imageBytes);
+                mChatManager.writeMessage(packet, -1);
             } catch (Exception e) {
                 System.err.println("Failed to send image");
                 System.err.println(e.toString());

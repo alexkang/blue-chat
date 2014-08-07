@@ -25,7 +25,6 @@
         <activity
             android:name=".HostActivity"
             android:label="@string/title_activity_host"
-            android:parentActivityName=".MainActivity"
             android:screenOrientation="portrait"
             android:windowSoftInputMode="stateHidden" >
             <meta-data
@@ -35,7 +34,6 @@
         <activity
             android:name=".ClientActivity"
             android:label="@string/title_activity_client"
-            android:parentActivityName=".MainActivity"
             android:screenOrientation="portrait"
             android:windowSoftInputMode="stateHidden" >
             <meta-data

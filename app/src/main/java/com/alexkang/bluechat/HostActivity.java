@@ -33,8 +33,8 @@ import java.util.ArrayList;
 
 public class HostActivity extends Activity {
 
-    public static final int REQUEST_DISCOVERABLE = 0;
-    public static final int PICK_IMAGE = 1;
+    public static final int REQUEST_DISCOVERABLE = 1;
+    public static final int PICK_IMAGE = 2;
 
     private EditText mMessage;
 
@@ -183,12 +183,12 @@ public class HostActivity extends Activity {
 
         try {
             byte[] messageBytes = mMessage.getText().toString().getBytes();
-            byteArray = mChatManager.buildPacket(ChatManager.MESSAGE_RECEIVE, mUsername, messageBytes);
+            byteArray = ChatManager.buildPacket(ChatManager.MESSAGE_SEND, mUsername, messageBytes);
         } catch (Exception e) {
             return;
         }
 
-        mChatManager.write(byteArray);
+        mChatManager.writeMessage(byteArray, -1);
         mMessage.setText("");
     }
 
@@ -243,11 +243,7 @@ public class HostActivity extends Activity {
         mSockets.add(socket);
         byte[] byteArray;
 
-        try {
-            byteArray = mChatManager.buildPacket(ChatManager.MESSAGE_NAME, mUsername, mChatRoomName.getBytes());
-        } catch (IOException e) {
-            return;
-        }
+        byteArray = ChatManager.buildPacket(ChatManager.MESSAGE_NAME, mUsername, mChatRoomName.getBytes());
 
         Toast.makeText(this, "User connected", Toast.LENGTH_SHORT).show();
         mChatManager.writeChatRoomName(byteArray);
@@ -266,8 +262,8 @@ public class HostActivity extends Activity {
                 ByteArrayOutputStream output = new ByteArrayOutputStream();
                 bitmap.compress(Bitmap.CompressFormat.JPEG, 15, output);
                 byte[] imageBytes = output.toByteArray();
-                byte[] packet = mChatManager.buildPacket(ChatManager.MESSAGE_RECEIVE_IMAGE, mUsername, imageBytes);
-                mChatManager.writeImage(packet, -1);
+                byte[] packet = ChatManager.buildPacket(ChatManager.MESSAGE_SEND_IMAGE, mUsername, imageBytes);
+                mChatManager.writeMessage(packet, -1);
             } catch (Exception e) {
                 System.err.println("Failed to send image");
                 System.err.println(e.toString());
