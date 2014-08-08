@@ -162,11 +162,7 @@ public class ChatManager {
     }
 
     public void writeChatRoomName(byte[] byteArray) {
-        if (isHost) {
-            for (ConnectedThread connection : connections) {
-                connection.write(byteArray);
-            }
-        }
+        connections.get(connections.size() - 1).write(byteArray);
     }
 
     public void writeMessage(byte[] byteArray, int senderIndex) {
@@ -191,12 +187,7 @@ public class ChatManager {
                 .sendToTarget();
 
         if (isHost) {
-            byteArray[0] = (byte) receiveType;
-            for (int i = 0; i < connections.size(); i++) {
-                if (i != senderIndex) {
-                    connections.get(i).write(byteArray);
-                }
-            }
+            new DistributeThread(receiveType, senderIndex, byteArray).start();
         } else {
             mConnectedThread.write(byteArray);
         }
@@ -211,6 +202,29 @@ public class ChatManager {
         mMessageFeed.invalidateViews();
         mFeedAdapter.notifyDataSetChanged();
         mMessageFeed.setSelection(mFeedAdapter.getCount()-1);
+    }
+
+    private class DistributeThread extends Thread {
+
+        int mReceiveType;
+        int mSenderIndex;
+        private byte[] mByteArray;
+
+        public DistributeThread(int receiveType, int senderIndex, byte[] byteArray) {
+            mReceiveType = receiveType;
+            mSenderIndex = senderIndex;
+            mByteArray = byteArray;
+        }
+
+        public void run() {
+            mByteArray[0] = (byte) mReceiveType;
+            for (int i = 0; i < connections.size(); i++) {
+                if (i != mSenderIndex) {
+                    connections.get(i).write(mByteArray);
+                }
+            }
+        }
+
     }
 
     private class ConnectedThread extends Thread {

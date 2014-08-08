@@ -75,7 +75,7 @@ public class MessageFeedAdapter extends ArrayAdapter<MessageBox> {
         senderView.setText(message.getSender());
         timeView.setText(message.getTime());
 
-        if (message.getMessage().length() > 0) {
+        if (!message.isImage() && message.getMessage().length() > 0) {
             convertView.setOnLongClickListener(new View.OnLongClickListener() {
                 @Override
                 public boolean onLongClick(View view) {
