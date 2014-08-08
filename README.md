@@ -16,4 +16,3 @@ Notes:
   
 Current Bugs:
   - Sometimes quitting and rejoining a chatroom is a bit buggy
-  - When a client sends an image or enters the gallery, they can no longer send any more messages or images
