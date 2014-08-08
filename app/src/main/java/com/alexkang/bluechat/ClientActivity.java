@@ -43,7 +43,6 @@ public class ClientActivity extends Activity {
     private BluetoothSocket mSocket;
 
     private ChatManager mChatManager;
-    private boolean shouldRestart = true;
 
     private final BroadcastReceiver mReceiver = new BroadcastReceiver() {
         @Override
@@ -101,6 +100,13 @@ public class ClientActivity extends Activity {
             }
         });
         mProgressDialog.show();
+
+        mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
+
+        SharedPreferences sharedPref = PreferenceManager.getDefaultSharedPreferences(this);
+        mUsername = sharedPref.getString("username", mBluetoothAdapter.getName());
+
+        startDeviceSearch();
     }
 
     @Override
@@ -141,8 +147,6 @@ public class ClientActivity extends Activity {
     }
 
     private void uploadAttachment() {
-        shouldRestart = false;
-
         Intent i = new Intent();
         i.setType("image/*");
         i.setAction(Intent.ACTION_PICK);
@@ -168,29 +172,6 @@ public class ClientActivity extends Activity {
                     Toast.makeText(this, "Image is incompatible or not locally stored", Toast.LENGTH_SHORT).show();
                 }
             }
-        }
-    }
-
-    @Override
-    public void onStart() {
-        super.onStart();
-
-        mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
-
-        SharedPreferences sharedPref = PreferenceManager.getDefaultSharedPreferences(this);
-        mUsername = sharedPref.getString("username", mBluetoothAdapter.getName());
-
-        startDeviceSearch();
-    }
-
-    @Override
-    public void onResume() {
-        super.onResume();
-
-        if (shouldRestart) {
-            mChatManager.restartConnection();
-        } else {
-            shouldRestart = true;
         }
     }
 

@@ -48,7 +48,6 @@ public class ChatManager {
     private Activity mActivity;
     private ProgressDialog mProgressDialog;
 
-    private BluetoothSocket mSocket;
     private ConnectedThread mConnectedThread;
 
     private final Handler mHandler = new Handler() {
@@ -128,7 +127,6 @@ public class ChatManager {
     public void startConnection(BluetoothSocket socket) {
         mConnectedThread = new ConnectedThread(socket);
         mConnectedThread.start();
-        mSocket = socket;
 
         if (isHost) {
             connections.add(mConnectedThread);
@@ -138,21 +136,6 @@ public class ChatManager {
     public void startConnection(BluetoothSocket socket, ProgressDialog progressDialog) {
         startConnection(socket);
         mProgressDialog = progressDialog;
-    }
-
-    public void restartConnection() {
-        if (!isHost && mSocket != null) {
-            try {
-                mSocket.close();
-                mConnectedThread = new ConnectedThread(mSocket);
-                mConnectedThread.start();
-            } catch (IOException e) {
-                Toast.makeText(mActivity, "Failed to reconnect", Toast.LENGTH_SHORT).show();
-                Intent i = new Intent(mActivity, MainActivity.class);
-                mActivity.startActivity(i);
-                mActivity.finish();
-            }
-        }
     }
 
     public static byte[] buildPacket(int type, String name, byte[] body) {
