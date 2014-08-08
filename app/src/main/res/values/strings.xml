@@ -2,6 +2,7 @@
 <resources>
 
     <string name="app_name">BlueChat</string>
+    <string name="content_desc">Image</string>
     <string name="edit_name">Edit name</string>
     <string name="host">Host</string>
     <string name="join">Join</string>
