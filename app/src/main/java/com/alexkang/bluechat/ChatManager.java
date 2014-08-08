@@ -287,6 +287,9 @@ public class ChatManager {
                 } catch (IOException e) {
                     System.err.println("Error in receiving packets");
                     e.printStackTrace();
+
+                    Toast.makeText(mActivity, "Connection lost", Toast.LENGTH_SHORT).show();
+                    mActivity.finish();
                     break;
                 }
             }
@@ -303,6 +306,9 @@ public class ChatManager {
                 }
                 System.err.println("Failed to write bytes: " + byteArrayString);
                 System.err.println(e.toString());
+
+                Toast.makeText(mActivity, "Connection lost", Toast.LENGTH_SHORT).show();
+                mActivity.finish();
             }
         }
 

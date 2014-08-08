@@ -86,6 +86,13 @@ public class MessageFeedAdapter extends ArrayAdapter<MessageBox> {
                     return true;
                 }
             });
+        } else {
+            convertView.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View view) {
+                    // do nothing.
+                }
+            });
         }
 
         return convertView;

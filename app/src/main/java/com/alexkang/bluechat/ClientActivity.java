@@ -15,6 +15,7 @@ import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Matrix;
 import android.net.Uri;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
@@ -224,6 +225,25 @@ public class ClientActivity extends Activity {
         }
 
         public void run() {
+            if (bitmap.getWidth() > 1024 || bitmap.getHeight() > 1024) {
+                float scalingFactor;
+
+                if (bitmap.getWidth() >= bitmap.getHeight()) {
+                    scalingFactor = 1024f / bitmap.getWidth();
+                } else {
+                    Matrix fixRotation = new Matrix();
+                    fixRotation.postRotate(90);
+                    scalingFactor = 1024f / bitmap.getHeight();
+                }
+
+                bitmap = Bitmap.createScaledBitmap(
+                        bitmap,
+                        (int) (bitmap.getWidth() * scalingFactor),
+                        (int) (bitmap.getHeight() * scalingFactor),
+                        false
+                );
+            }
+            
             try {
                 ByteArrayOutputStream output = new ByteArrayOutputStream();
                 bitmap.compress(Bitmap.CompressFormat.JPEG, 15, output);

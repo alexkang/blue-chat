@@ -5,9 +5,6 @@ import android.graphics.Bitmap;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
-/**
- * Created by Alex on 7/25/2014.
- */
 public class MessageBox {
 
     private String sender;
