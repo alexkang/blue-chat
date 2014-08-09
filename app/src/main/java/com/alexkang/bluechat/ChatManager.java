@@ -30,16 +30,17 @@ public class ChatManager {
     public static final int BODY_LENGTH_END = 255;
     public static final int BODY_LENGTH_END_SIGNED = -1;
 
-    public static final int MESSAGE_NAME = 1;
-    public static final int MESSAGE_SEND = 2;
-    public static final int MESSAGE_RECEIVE = 3;
-    public static final int MESSAGE_SEND_IMAGE = 4;
-    public static final int MESSAGE_RECEIVE_IMAGE = 5;
-
-    private SharedPreferences sharedPref;
+    public static final int MESSAGE_ID = 1;
+    public static final int MESSAGE_NAME = 2;
+    public static final int MESSAGE_SEND = 3;
+    public static final int MESSAGE_RECEIVE = 4;
+    public static final int MESSAGE_SEND_IMAGE = 5;
+    public static final int MESSAGE_RECEIVE_IMAGE = 6;
 
     private boolean isHost;
+    private boolean isInitialized = false;
     private ArrayList<ConnectedThread> connections;
+    private int id;
 
     private ArrayList<MessageBox> mMessageList;
     private MessageFeedAdapter mFeedAdapter;
@@ -56,17 +57,18 @@ public class ChatManager {
         public void handleMessage(Message msg) {
             byte[] packet = (byte[]) msg.obj;
             int senderLength = msg.arg1;
-            int senderIndex = msg.arg2;
+            int senderId = msg.arg2;
 
             String sender = new String(Arrays.copyOfRange(packet, 0, senderLength));
             byte[] body = Arrays.copyOfRange(packet, senderLength, packet.length);
 
-            String username = sharedPref.getString("username", BluetoothAdapter.getDefaultAdapter().getName());
-            boolean isSelf = username.equals(sender);
+            boolean isSelf = senderId == id;
 
             switch (msg.what) {
+                case MESSAGE_ID:
+                    id = body[0];
                 case MESSAGE_NAME:
-                    if (!isHost) {
+                    if (!isHost && !isInitialized) {
                         String chatRoomName = new String(body);
 
                         if (mActivity.getActionBar() != null) {
@@ -75,13 +77,16 @@ public class ChatManager {
 
                         BluetoothAdapter.getDefaultAdapter().cancelDiscovery();
                         mProgressDialog.dismiss();
-                        Toast.makeText(mActivity, "Connected to " + chatRoomName, Toast.LENGTH_SHORT).show();
+
+                        Toast.makeText(mActivity, "Connected!", Toast.LENGTH_SHORT).show();
+
+                        isInitialized = true;
                     }
                     break;
                 case MESSAGE_SEND:
                     if (isHost) {
-                        byte[] sendPacket = buildPacket(MESSAGE_SEND, sender, body);
-                        writeMessage(sendPacket, senderIndex);
+                        byte[] sendPacket = buildPacket(MESSAGE_SEND, senderId, sender, body);
+                        writeMessage(sendPacket, senderId);
                     }
                     break;
                 case MESSAGE_RECEIVE:
@@ -90,8 +95,8 @@ public class ChatManager {
                     break;
                 case MESSAGE_SEND_IMAGE:
                     if (isHost) {
-                        byte[] sendImagePacket = buildPacket(MESSAGE_SEND_IMAGE, sender, body);
-                        writeMessage(sendImagePacket, senderIndex);
+                        byte[] sendImagePacket = buildPacket(MESSAGE_SEND_IMAGE, senderId, sender, body);
+                        writeMessage(sendImagePacket, senderId);
                     }
                     break;
                 case MESSAGE_RECEIVE_IMAGE:
@@ -106,10 +111,10 @@ public class ChatManager {
     public ChatManager(Activity activity, boolean isHost) {
         mActivity = activity;
         mMessageFeed = (ListView) mActivity.findViewById(R.id.message_feed);
-        sharedPref = PreferenceManager.getDefaultSharedPreferences(mActivity);
         this.isHost = isHost;
 
         if (isHost) {
+            id = 0;
             connections = new ArrayList<ConnectedThread>();
         }
 
@@ -125,11 +130,19 @@ public class ChatManager {
     }
 
     public void startConnection(BluetoothSocket socket) {
+        SharedPreferences sharedPref = PreferenceManager.getDefaultSharedPreferences(mActivity);
+        String username = sharedPref.getString("username", BluetoothAdapter.getDefaultAdapter().getName());
         mConnectedThread = new ConnectedThread(socket);
         mConnectedThread.start();
 
         if (isHost) {
             connections.add(mConnectedThread);
+            byte[] idAssignmentPacket = buildPacket(
+                    MESSAGE_ID,
+                    username,
+                    new byte[] { (byte) connections.size() }
+            );
+            mConnectedThread.write(idAssignmentPacket);
         }
     }
 
@@ -138,10 +151,10 @@ public class ChatManager {
         mProgressDialog = progressDialog;
     }
 
-    public static byte[] buildPacket(int type, String name, byte[] body) {
+    public byte[] buildPacket(int type, int senderId, String sender, byte[] body) {
         ByteArrayOutputStream output = new ByteArrayOutputStream();
         output.write(type);
-        output.write(name.length());
+        output.write(sender.length());
 
         int bodyLength = body.length;
         do {
@@ -151,7 +164,8 @@ public class ChatManager {
 
         try {
             output.write(BODY_LENGTH_END);
-            output.write(name.getBytes());
+            output.write(senderId);
+            output.write(sender.getBytes());
             output.write(body);
         } catch (IOException e) {
             System.err.println("Error in building packet.");
@@ -161,13 +175,15 @@ public class ChatManager {
         return output.toByteArray();
     }
 
+    public byte[] buildPacket(int type, String sender, byte[] body) {
+        return buildPacket(type, id, sender, body);
+    }
+
     public void writeChatRoomName(byte[] byteArray) {
         connections.get(connections.size() - 1).write(byteArray);
     }
 
-    public void writeMessage(byte[] byteArray, int senderIndex) {
-        // senderIndex of -1 indicates that the sender called this function themselves.
-
+    public void writeMessage(byte[] byteArray, int senderId) {
         int type = byteArray[0];
         int receiveType = 0;
         if (type == MESSAGE_SEND) {
@@ -183,18 +199,18 @@ public class ChatManager {
             currIndex++;
         } while (byteArray[currIndex] != BODY_LENGTH_END_SIGNED);
 
-        mHandler.obtainMessage(receiveType, senderLength, senderIndex, Arrays.copyOfRange(byteArray, currIndex + 1, byteArray.length))
+        mHandler.obtainMessage(receiveType, senderLength, senderId, Arrays.copyOfRange(byteArray, currIndex + 2, byteArray.length))
                 .sendToTarget();
 
         if (isHost) {
-            new DistributeThread(receiveType, senderIndex, byteArray).start();
+            new DistributeThread(receiveType, senderId, byteArray).start();
         } else {
             mConnectedThread.write(byteArray);
         }
     }
 
     public void writeMessage(byte[] byteArray) {
-        writeMessage(byteArray, -1);
+        writeMessage(byteArray, id);
     }
 
     private void addMessage(MessageBox message) {
@@ -207,19 +223,19 @@ public class ChatManager {
     private class DistributeThread extends Thread {
 
         int mReceiveType;
-        int mSenderIndex;
+        int mSenderId;
         private byte[] mByteArray;
 
-        public DistributeThread(int receiveType, int senderIndex, byte[] byteArray) {
+        public DistributeThread(int receiveType, int senderId, byte[] byteArray) {
             mReceiveType = receiveType;
-            mSenderIndex = senderIndex;
+            mSenderId = senderId;
             mByteArray = byteArray;
         }
 
         public void run() {
             mByteArray[0] = (byte) mReceiveType;
             for (int i = 0; i < connections.size(); i++) {
-                if (i != mSenderIndex) {
+                if (i + 1 != mSenderId) {
                     connections.get(i).write(mByteArray);
                 }
             }
@@ -255,11 +271,6 @@ public class ChatManager {
                 try {
                     int type = mmInStream.read();
                     int senderLength = mmInStream.read();
-                    int senderIndex = -1;
-
-                    if (isHost) {
-                        senderIndex = connections.indexOf(this);
-                    }
 
                     /*
                      * Calculate the length of the body in bytes. Each byte read is a digit
@@ -276,20 +287,20 @@ public class ChatManager {
                         currDigit = mmInStream.read();
                     } while (currDigit != BODY_LENGTH_END);
 
+                    int senderId = mmInStream.read();
+
                     ByteArrayOutputStream packetStream = new ByteArrayOutputStream();
                     for (int i = 0; i < senderLength + bodyLength; i++) {
                         packetStream.write(mmInStream.read());
                     }
                     byte[] packet = packetStream.toByteArray();
 
-                    mHandler.obtainMessage(type, senderLength, senderIndex, packet)
+                    mHandler.obtainMessage(type, senderLength, senderId, packet)
                             .sendToTarget();
                 } catch (IOException e) {
                     System.err.println("Error in receiving packets");
                     e.printStackTrace();
-
-                    Toast.makeText(mActivity, "Connection lost", Toast.LENGTH_SHORT).show();
-                    mActivity.finish();
+                    endActivity();
                     break;
                 }
             }
@@ -306,9 +317,21 @@ public class ChatManager {
                 }
                 System.err.println("Failed to write bytes: " + byteArrayString);
                 System.err.println(e.toString());
+                endActivity();
+            }
+        }
 
-                Toast.makeText(mActivity, "Connection lost", Toast.LENGTH_SHORT).show();
-                mActivity.finish();
+        private void endActivity() {
+            if (!isHost) {
+                mActivity.runOnUiThread(new Runnable() {
+
+                    @Override
+                    public void run() {
+                        Toast.makeText(mActivity, "ChatRoom closed", Toast.LENGTH_SHORT).show();
+                        mActivity.finish();
+                    }
+
+                });
             }
         }
 

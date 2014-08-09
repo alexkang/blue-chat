@@ -191,7 +191,11 @@ public class HostActivity extends Activity {
 
         try {
             byte[] messageBytes = mMessage.getText().toString().getBytes();
-            byteArray = ChatManager.buildPacket(ChatManager.MESSAGE_SEND, mUsername, messageBytes);
+            byteArray = mChatManager.buildPacket(
+                    ChatManager.MESSAGE_SEND,
+                    mUsername,
+                    messageBytes
+            );
         } catch (Exception e) {
             return;
         }
@@ -251,7 +255,11 @@ public class HostActivity extends Activity {
         mSockets.add(socket);
         byte[] byteArray;
 
-        byteArray = ChatManager.buildPacket(ChatManager.MESSAGE_NAME, mUsername, mChatRoomName.getBytes());
+        byteArray = mChatManager.buildPacket(
+                ChatManager.MESSAGE_NAME,
+                mUsername,
+                mChatRoomName.getBytes()
+        );
 
         Toast.makeText(this, "User connected", Toast.LENGTH_SHORT).show();
         mChatManager.writeChatRoomName(byteArray);
@@ -289,7 +297,11 @@ public class HostActivity extends Activity {
                 ByteArrayOutputStream output = new ByteArrayOutputStream();
                 bitmap.compress(Bitmap.CompressFormat.JPEG, 15, output);
                 byte[] imageBytes = output.toByteArray();
-                byte[] packet = ChatManager.buildPacket(ChatManager.MESSAGE_SEND_IMAGE, mUsername, imageBytes);
+                byte[] packet = mChatManager.buildPacket(
+                        ChatManager.MESSAGE_SEND_IMAGE,
+                        mUsername,
+                        imageBytes
+                );
                 mChatManager.writeMessage(packet);
             } catch (Exception e) {
                 System.err.println("Failed to send image");
