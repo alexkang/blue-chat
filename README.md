@@ -6,7 +6,7 @@ Bluetooth instant messaging app for Android
 How it works:
   - To send messages and images, we transmit them in formatted byte arrays in the following format:
       <blockquote>
-      [ Message Type, Sender Name Length, ...Body Length**..., Sender Name, Body ]
+      [ Message Type, Sender Name Length, ...Body Length**..., Sender ID, Sender Name, Body ]
       </blockquote>
       
     ** The Body Length is separated into tens digits (from least to most significant digit) just in case the body length exceeds the size of a byte.
