@@ -211,7 +211,6 @@ public class HostActivity extends Activity {
             mAcceptThread.start();
             Toast.makeText(this, "Searching for users...", Toast.LENGTH_SHORT).show();
         } else if (resultCode == RESULT_OK && requestCode == PICK_IMAGE) {
-            try {
                 Uri image = data.getData();
                 String[] filePathColumn = {MediaStore.Images.Media.DATA};
                 Cursor cursor = getContentResolver().query(image, filePathColumn, null, null, null);
@@ -222,9 +221,6 @@ public class HostActivity extends Activity {
 
                 new SendImageThread(picturePath).start();
                 cursor.close();
-            } catch (Exception e) {
-                Toast.makeText(this, "Image is incompatible or not locally stored", Toast.LENGTH_SHORT).show();
-            }
         } else if (requestCode == REQUEST_DISCOVERABLE) {
             Toast.makeText(this, "New users cannot join your chat room", Toast.LENGTH_SHORT).show();
         }
@@ -274,6 +270,17 @@ public class HostActivity extends Activity {
         }
 
         public void run() {
+            if (bitmap == null) {
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        Toast.makeText(getBaseContext(), "Image is incompatible or not locally stored", Toast.LENGTH_SHORT).show();
+                    }
+                });
+
+                return;
+            }
+
             if (bitmap.getWidth() > 1024 || bitmap.getHeight() > 1024) {
                 float scalingFactor;
 
