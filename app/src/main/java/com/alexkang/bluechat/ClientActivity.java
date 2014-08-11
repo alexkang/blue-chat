@@ -162,20 +162,16 @@ public class ClientActivity extends Activity {
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
         if (requestCode == PICK_IMAGE) {
             if (resultCode == RESULT_OK) {
-                try {
-                    Uri image = data.getData();
-                    String[] filePathColumn = {MediaStore.Images.Media.DATA};
-                    Cursor cursor = getContentResolver().query(image, filePathColumn, null, null, null);
+                Uri image = data.getData();
+                String[] filePathColumn = {MediaStore.Images.Media.DATA};
+                Cursor cursor = getContentResolver().query(image, filePathColumn, null, null, null);
 
-                    cursor.moveToFirst();
-                    int columnIndex = cursor.getColumnIndex(filePathColumn[0]);
-                    String picturePath = cursor.getString(columnIndex);
+                cursor.moveToFirst();
+                int columnIndex = cursor.getColumnIndex(filePathColumn[0]);
+                String picturePath = cursor.getString(columnIndex);
 
-                    new SendImageThread(picturePath).start();
-                    cursor.close();
-                } catch (Exception e) {
-                    Toast.makeText(this, "Image is incompatible or not locally stored", Toast.LENGTH_SHORT).show();
-                }
+                new SendImageThread(picturePath).start();
+                cursor.close();
             }
         }
     }
@@ -229,6 +225,17 @@ public class ClientActivity extends Activity {
         }
 
         public void run() {
+            if (bitmap == null) {
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        Toast.makeText(getBaseContext(), "Image is incompatible or not locally stored", Toast.LENGTH_SHORT).show();
+                    }
+                });
+
+                return;
+            }
+            
             if (bitmap.getWidth() > 1024 || bitmap.getHeight() > 1024) {
                 float scalingFactor;
 

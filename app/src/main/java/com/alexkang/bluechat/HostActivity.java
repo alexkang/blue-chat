@@ -211,16 +211,16 @@ public class HostActivity extends Activity {
             mAcceptThread.start();
             Toast.makeText(this, "Searching for users...", Toast.LENGTH_SHORT).show();
         } else if (resultCode == RESULT_OK && requestCode == PICK_IMAGE) {
-                Uri image = data.getData();
-                String[] filePathColumn = {MediaStore.Images.Media.DATA};
-                Cursor cursor = getContentResolver().query(image, filePathColumn, null, null, null);
+            Uri image = data.getData();
+            String[] filePathColumn = {MediaStore.Images.Media.DATA};
+            Cursor cursor = getContentResolver().query(image, filePathColumn, null, null, null);
 
-                cursor.moveToFirst();
-                int columnIndex = cursor.getColumnIndex(filePathColumn[0]);
-                String picturePath = cursor.getString(columnIndex);
+            cursor.moveToFirst();
+            int columnIndex = cursor.getColumnIndex(filePathColumn[0]);
+            String picturePath = cursor.getString(columnIndex);
 
-                new SendImageThread(picturePath).start();
-                cursor.close();
+            new SendImageThread(picturePath).start();
+            cursor.close();
         } else if (requestCode == REQUEST_DISCOVERABLE) {
             Toast.makeText(this, "New users cannot join your chat room", Toast.LENGTH_SHORT).show();
         }
