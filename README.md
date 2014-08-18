@@ -16,3 +16,5 @@ Notes:
   
 Current Bugs:
   - Sometimes quitting and rejoining a chatroom is a bit buggy
+
+Download Current Version: https://www.mediafire.com/?sy1y7448i6adfts
