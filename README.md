@@ -1,5 +1,5 @@
-BlueChat
-=========
+[SUMMER 2014] BlueChat
+======================
 
 Bluetooth instant messaging app for Android
 
