@@ -3,7 +3,7 @@ BlueChat
 
 Bluetooth instant messaging app for Android
 
-Screenshots here (more to be posted soon): http://imgur.com/Vy45zJ7.jpg
+Screenshots here (more to be posted soon): http://imgur.com/a/Esmbt
 
 How it works:
   - To send messages and images, we transmit them in formatted byte arrays in the following format:
