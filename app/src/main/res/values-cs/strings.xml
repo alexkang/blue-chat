@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string name="app_name">BlueChat</string>
+    <string name="content_desc">Obrázek</string>
+    <string name="edit_name">Upravit jméno</string>
+    <string name="host">Hostovat</string>
+    <string name="join">Vstoupit</string>
+    <string name="title_activity_host">Založit chat</string>
+    <string name="title_activity_client">Připojit se k chatu</string>
+    <string name="action_reopen">Znovu otevřít založený chat</string>
+
+</resources>
