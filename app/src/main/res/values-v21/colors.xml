@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="blue">#2d76d8</color>
+    <color name="blue_darker">#0E60D0</color>
+    <color name="blue_darker_darker">#094598</color>
+    <color name="off_white">#F5F5F5</color>
+    <color name="light_gray">#EDEDED</color>
+    <color name="dark_gray">#363636</color>
+</resources>

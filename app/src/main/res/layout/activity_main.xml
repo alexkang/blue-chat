@@ -12,7 +12,7 @@
         android:layout_height="0dp"
         android:layout_weight="1"
         android:background="@drawable/host_button"
-        android:textSize="150sp"
+        android:textSize="140sp"
         android:textColor="@android:color/white"
         android:textStyle="bold"
         android:text="@string/host" />
@@ -23,7 +23,7 @@
         android:layout_height="0dp"
         android:layout_weight="1"
         android:background="@drawable/join_button"
-        android:textSize="150sp"
+        android:textSize="140sp"
         android:textColor="@android:color/white"
         android:textStyle="bold"
         android:text="@string/join" />
