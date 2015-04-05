@@ -1,9 +1,9 @@
-[SUMMER 2014] BlueChat
+[Ressurected] BlueChat (AKA Fire Chat)
 ======================
 
 Bluetooth instant messaging app for Android, Edited by Maysleazy.
 
-Screenshots here (more to be posted soon): http://imgur.com/a/Esmbt
+Screenshots here (more to be posted soon): http://imgur.com/a/Esmbt (Not Updated, will update soon)
 
 How it works:
   - To send messages and images, we transmit them in formatted byte arrays in the following format:
