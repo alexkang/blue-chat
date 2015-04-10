@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string name="app_name">Fire Chat</string>
+    <string name="content_desc">Image</string>
+    <string name="edit_name">Edit name</string>
+    <string name="host">Host</string>
+    <string name="join">Join</string>
+    <string name="title_activity_host">Host a Chat room</string>
+    <string name="title_activity_client">Join a Chat room</string>
+    <string name="action_reopen">Reopen Chat room</string>
+
+</resources>
