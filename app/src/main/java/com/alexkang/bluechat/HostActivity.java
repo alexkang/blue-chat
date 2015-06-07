@@ -115,9 +115,9 @@ public class HostActivity extends Activity {
 
         // Set up ChatRoom naming dialog
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setMessage("Enter your ChatRoom name");
+        builder.setMessage(getString(R.string.enter_your_chatroom_name));
         builder.setView(nameInput);
-        builder.setPositiveButton("Submit", new DialogInterface.OnClickListener() {
+        builder.setPositiveButton(getString(R.string.submit), new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialogInterface, int which) {
                 mChatRoomName = nameInput.getText().toString();
@@ -130,7 +130,7 @@ public class HostActivity extends Activity {
                 initializeBluetooth();
             }
         });
-        builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+        builder.setNegativeButton(getString(R.string.cancel), new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialogInterface, int i) {
                 imm.hideSoftInputFromWindow(nameInput.getWindowToken(), 0);
@@ -151,7 +151,8 @@ public class HostActivity extends Activity {
 
         nameInput.addTextChangedListener(new TextWatcher() {
             @Override
-            public void beforeTextChanged(CharSequence charSequence, int i, int i2, int i3) {}
+            public void beforeTextChanged(CharSequence charSequence, int i, int i2, int i3) {
+            }
 
             @Override
             public void onTextChanged(CharSequence charSequence, int i, int i2, int i3) {
@@ -163,12 +164,13 @@ public class HostActivity extends Activity {
             }
 
             @Override
-            public void afterTextChanged(Editable editable) {}
+            public void afterTextChanged(Editable editable) {
+            }
         });
     }
 
     private void initializeBluetooth() {
-        mSockets = new ArrayList<BluetoothSocket>();
+        mSockets = new ArrayList<>();
 
         Intent i = new Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE);
         i.putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 300);
@@ -179,7 +181,7 @@ public class HostActivity extends Activity {
         Intent i = new Intent();
         i.setType("image/*");
         i.setAction(Intent.ACTION_PICK);
-        startActivityForResult(Intent.createChooser(i, "Select Picture"), PICK_IMAGE);
+        startActivityForResult(Intent.createChooser(i, getString(R.string.select_picture)), PICK_IMAGE);
     }
 
     private void sendMessage() {
@@ -209,7 +211,7 @@ public class HostActivity extends Activity {
         if (resultCode != RESULT_CANCELED && requestCode == REQUEST_DISCOVERABLE) {
             mAcceptThread = new AcceptThread();
             mAcceptThread.start();
-            Toast.makeText(this, "Searching for users...", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, getString(R.string.searching_for_users), Toast.LENGTH_SHORT).show();
         } else if (resultCode == RESULT_OK && requestCode == PICK_IMAGE) {
             Uri image = data.getData();
             String[] filePathColumn = {MediaStore.Images.Media.DATA};
@@ -222,7 +224,7 @@ public class HostActivity extends Activity {
             new SendImageThread(picturePath).start();
             cursor.close();
         } else if (requestCode == REQUEST_DISCOVERABLE) {
-            Toast.makeText(this, "New users cannot join your chat room", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, getString(R.string.new_users_cannot_join_chatroom), Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -274,7 +276,7 @@ public class HostActivity extends Activity {
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
-                        Toast.makeText(getBaseContext(), "Image is incompatible or not locally stored", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(getBaseContext(), getString(R.string.image_is_incompatible), Toast.LENGTH_SHORT).show();
                     }
                 });
 

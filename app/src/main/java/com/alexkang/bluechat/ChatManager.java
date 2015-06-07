@@ -78,7 +78,7 @@ public class ChatManager {
                         BluetoothAdapter.getDefaultAdapter().cancelDiscovery();
                         mProgressDialog.dismiss();
 
-                        Toast.makeText(mActivity, "Connected!", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(mActivity, mActivity.getString(R.string.connected), Toast.LENGTH_SHORT).show();
 
                         isInitialized = true;
                     }
@@ -115,10 +115,10 @@ public class ChatManager {
 
         if (isHost) {
             id = 0;
-            connections = new ArrayList<ConnectedThread>();
+            connections = new ArrayList<>();
         }
 
-        mMessageList = new ArrayList<MessageBox>();
+        mMessageList = new ArrayList<>();
         mFeedAdapter = new MessageFeedAdapter(mActivity, mMessageList);
         mMessageFeed.setAdapter(mFeedAdapter);
 
@@ -256,7 +256,7 @@ public class ChatManager {
                 tmpIn = socket.getInputStream();
                 tmpOut = socket.getOutputStream();
             } catch (IOException e) {
-                Toast.makeText(mActivity, "Could not connect to ChatRoom, now exiting", Toast.LENGTH_SHORT).show();
+                Toast.makeText(mActivity, mActivity.getString(R.string.could_not_connect_to_chatroom), Toast.LENGTH_SHORT).show();
                 Intent i = new Intent(mActivity, MainActivity.class);
                 mActivity.startActivity(i);
                 mActivity.finish();
@@ -327,7 +327,7 @@ public class ChatManager {
 
                     @Override
                     public void run() {
-                        Toast.makeText(mActivity, "ChatRoom closed", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(mActivity, mActivity.getString(R.string.chatroom_closed), Toast.LENGTH_SHORT).show();
                         mActivity.finish();
                     }
 

@@ -34,7 +34,7 @@ public class ClientActivity extends Activity {
 
     public static final int PICK_IMAGE = 1;
 
-    private ArrayList<Integer> acceptableDevices = new ArrayList<Integer>();
+    private ArrayList<Integer> acceptableDevices = new ArrayList<>();
 
     private EditText mMessage;
     private ProgressDialog mProgressDialog;
@@ -93,7 +93,7 @@ public class ClientActivity extends Activity {
             }
         });
 
-        mProgressDialog.setMessage("Looking for ChatRoom...");
+        mProgressDialog.setMessage(getString(R.string.looking_for_chatroom));
         mProgressDialog.setOnCancelListener(new DialogInterface.OnCancelListener() {
             @Override
             public void onCancel(DialogInterface dialogInterface) {
@@ -155,7 +155,7 @@ public class ClientActivity extends Activity {
         Intent i = new Intent();
         i.setType("image/*");
         i.setAction(Intent.ACTION_PICK);
-        startActivityForResult(Intent.createChooser(i, "Select Picture"), PICK_IMAGE);
+        startActivityForResult(Intent.createChooser(i, getString(R.string.select_picture)), PICK_IMAGE);
     }
 
     @Override
@@ -229,7 +229,7 @@ public class ClientActivity extends Activity {
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
-                        Toast.makeText(getBaseContext(), "Image is incompatible or not locally stored", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(getBaseContext(), getString(R.string.image_is_incompatible), Toast.LENGTH_SHORT).show();
                     }
                 });
 

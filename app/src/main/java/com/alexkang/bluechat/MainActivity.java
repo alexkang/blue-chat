@@ -80,16 +80,16 @@ public class MainActivity extends Activity {
             nameInput.setSelectAllOnFocus(true);
 
             AlertDialog.Builder builder = new AlertDialog.Builder(this);
-            builder.setMessage("Enter your username");
+            builder.setMessage(getString(R.string.enter_your_username));
             builder.setView(nameInput);
-            builder.setPositiveButton("Submit", new DialogInterface.OnClickListener() {
+            builder.setPositiveButton(getString(R.string.submit), new DialogInterface.OnClickListener() {
                 @Override
                 public void onClick(DialogInterface dialogInterface, int which) {
                     imm.hideSoftInputFromWindow(nameInput.getWindowToken(), 0);
-                    sharedPref.edit().putString("username", nameInput.getText().toString()).apply();
+                    sharedPref.edit().putString(getString(R.string.username), nameInput.getText().toString()).apply();
                 }
             });
-            builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+            builder.setNegativeButton(getString(R.string.cancel), new DialogInterface.OnClickListener() {
                 @Override
                 public void onClick(DialogInterface dialogInterface, int i) {
                     imm.hideSoftInputFromWindow(nameInput.getWindowToken(), 0);
@@ -127,7 +127,7 @@ public class MainActivity extends Activity {
 
         BluetoothAdapter mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
         if (mBluetoothAdapter == null) {
-            Toast.makeText(this, "Bluetooth not supported on this device, now exiting.", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, getString(R.string.bluetooth_not_supported), Toast.LENGTH_LONG).show();
             finish();
         }
     }
