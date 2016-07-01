@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <string name="app_name">Fire Chat</string>
+    <string name="app_name">BlueChat</string>
     <string name="content_desc">Image</string>
     <string name="edit_name">Edit name</string>
     <string name="host">Host</string>
@@ -9,5 +9,20 @@
     <string name="title_activity_host">Host a Chat room</string>
     <string name="title_activity_client">Join a Chat room</string>
     <string name="action_reopen">Reopen Chat room</string>
+    <string name="submit">Submit</string>
+    <string name="cancel">Cancel</string>
+    <string name="username">Username</string>
+    <string name="enter_your_username">Enter your username</string>
+    <string name="bluetooth_not_supported">Bluetooth not supported on this device, now exiting.</string>
+    <string name="connected">Connected!</string>
+    <string name="could_not_connect_to_chatroom">Could not connect to ChatRoom, now exiting</string>
+    <string name="chatroom_closed">ChatRoom closed</string>
+    <string name="looking_for_chatroom">Looking for ChatRoom…</string>
+    <string name="select_picture">Select Picture</string>
+    <string name="image_is_incompatible">Image is incompatible or not locally stored</string>
+    <string name="enter_your_chatroom_name">Enter your ChatRoom name</string>
+    <string name="searching_for_users">Searching for users…</string>
+    <string name="new_users_cannot_join_chatroom">New users cannot join your chat room</string>
+    <string name="message_copied_to_clipboard">Message copied to clipboard</string>
 
 </resources>

@@ -41,8 +41,8 @@ public class MessageFeedAdapter extends ArrayAdapter<MessageBox> {
         ImageView imageView = (ImageView) convertView.findViewById(R.id.image);
 
         if (message.isSelf()) {
-            senderView.setGravity(Gravity.RIGHT);
-            messageView.setGravity(Gravity.RIGHT);
+            senderView.setGravity(Gravity.END);
+            messageView.setGravity(Gravity.END);
 
             RelativeLayout.LayoutParams rightAlign =
                     new RelativeLayout.LayoutParams(
@@ -52,8 +52,8 @@ public class MessageFeedAdapter extends ArrayAdapter<MessageBox> {
             rightAlign.addRule(RelativeLayout.ALIGN_PARENT_RIGHT);
             imageView.setLayoutParams(rightAlign);
         } else {
-            senderView.setGravity(Gravity.LEFT);
-            messageView.setGravity(Gravity.LEFT);
+            senderView.setGravity(Gravity.START);
+            messageView.setGravity(Gravity.START);
 
             RelativeLayout.LayoutParams leftAlign =
                     new RelativeLayout.LayoutParams(
@@ -81,7 +81,7 @@ public class MessageFeedAdapter extends ArrayAdapter<MessageBox> {
                 public boolean onLongClick(View view) {
                     ClipData clip = ClipData.newPlainText("message", message.getMessage());
                     clipboard.setPrimaryClip(clip);
-                    Toast.makeText(mContext, "Message copied to clipboard", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(mContext, mContext.getString(R.string.message_copied_to_clipboard), Toast.LENGTH_SHORT).show();
 
                     return true;
                 }

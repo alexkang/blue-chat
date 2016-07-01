@@ -4,6 +4,7 @@ import android.graphics.Bitmap;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.Locale;
 
 public class MessageBox {
 
@@ -42,7 +43,7 @@ public class MessageBox {
     }
 
     public String getTime() {
-        SimpleDateFormat dateFormatter = new SimpleDateFormat("hh:mm");
+        SimpleDateFormat dateFormatter = new SimpleDateFormat("hh:mm", Locale.getDefault());
         return dateFormatter.format(time);
     }
 
