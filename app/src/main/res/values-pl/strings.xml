@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string name="app_name">BlueChat</string>
+    <string name="content_desc">Zdjęcie</string>
+    <string name="edit_name">Zmień nazwę</string>
+    <string name="host">Gospodarz</string>
+    <string name="join">Dołącz</string>
+    <string name="title_activity_host">Poprowadź pokój rozmów</string>
+    <string name="title_activity_client">Dołącz do pokoju rozmów</string>
+    <string name="action_reopen">Ponownie otwórz pokój rozmów</string>
+    <string name="submit">Prześlij</string>
+    <string name="cancel">Anuluj</string>
+    <string name="username">Nazwa Użytkownika</string>
+    <string name="enter_your_username">Wpisz swoją nazwę użytkownika</string>
+    <string name="bluetooth_not_supported">Bluetooth nie jest obsługiwany na tym urządzeniu, wychodzę.</string>
+    <string name="connected">Podłączony!</string>
+    <string name="could_not_connect_to_chatroom">Nie można połączyć się z pokojem rozmów, wychodzę</string>
+    <string name="chatroom_closed">Pokój rozmów zamknięty</string>
+    <string name="looking_for_chatroom">Szukam pokoju rozmów…</string>
+    <string name="select_picture">Wybierz zdjęcie</string>
+    <string name="image_is_incompatible">Zdjęcie jest niezgodne lub nie jest przechowywane lokalnie</string>
+    <string name="enter_your_chatroom_name">Wpisz nazwę pokoju rozmów</string>
+    <string name="searching_for_users">Wyszukiwanie użytkowników...</string>
+    <string name="new_users_cannot_join_chatroom">Nowi użytkownicy nie mogą dołączyć do Twojego pokoju rozmów</string>
+    <string name="message_copied_to_clipboard">Wiadomość skopiowana do schowka</string>
+
+</resources>
